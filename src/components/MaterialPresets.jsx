@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import { builtInMaterialPresets, snapshotMaterial } from '../material-presets.js';
 import { defaults } from '../defaults.js';
 
-export default function MaterialPresets({ settings, onApply, presets, onChange }) {
-  const [name, setName] = useState('');
+export default function MaterialPresets({ settings, onApply, presets, onChange, name, onNameChange: setName }) {
   const update = items => {
     onChange(items);
   };

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Box, ArrowDownToLine, RotateCcw, ImagePlus, X, MoveUpRight, Sparkles, Sun, Moon, Layers, Check, MousePointer2, Aperture, ChevronRight } from 'lucide-react';
 import { IconScene } from './scene.js';
@@ -6,10 +6,11 @@ import { uvChannels } from './uv-channels.js';
 import { githubURL, isWatermarkEnabled, rememberWatermarkDisabled } from './project.js';
 import { defaults } from './defaults.js';
 import { studioEnvironments } from './environments.js';
-import GradientASCII from './components/GradientASCII.jsx';
+import ResponsiveBackground from './components/ResponsiveBackground.jsx';
 import ColorPicker from './components/ColorPicker.jsx';
 import MaterialPresets from './components/MaterialPresets.jsx';
 import CameraAxes from './components/CameraAxes.jsx';
+import FpsCounter from './components/FpsCounter.jsx';
 import BatchPanel from './components/BatchPanel.jsx';
 import TexturePresets from './components/TexturePresets.jsx';
 import { useBatch } from './use-batch.js';
@@ -44,6 +45,7 @@ function App() {
   const [fov, setFov] = useState(32);
   const [cameraPresets, setCameraPresets] = useState(loadCameraPresets);
   const [materialPresets, setMaterialPresets] = useState(loadMaterialPresets);
+  const [materialDraft, setMaterialDraft] = useState('');
   const [environments, setEnvironments] = useState(studioEnvironments);
   const [environmentId, setEnvironmentId] = useState('studio');
   const [environmentLoading, setEnvironmentLoading] = useState(false);
@@ -112,16 +114,18 @@ function App() {
     document.addEventListener('pointerdown', closeGallery);
     return () => document.removeEventListener('pointerdown', closeGallery);
   }, []);
-  const upload = async (slot, file) => {
+  const upload = useCallback(async (slot, file) => {
     if(file.size > 20*1024*1024) { setError('Максимальный размер изображения — 20 МБ.'); return; }
     if(!['image/png','image/jpeg','image/webp'].includes(file.type)) { setError('Выберите изображение PNG, JPEG или WebP.'); return; }
     const url = URL.createObjectURL(file);
     const request = imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1;
     try { await engine.current.setImage(slot, url); if (imageRequests.current[slot] !== request) { URL.revokeObjectURL(url); return; } const previous = assetRefs.current[slot]; if (previous) URL.revokeObjectURL(previous.url); const asset = {url, name: file.name}; assetRefs.current = {...assetRefs.current, [slot]: asset}; setAssets(assetRefs.current); if (slot === 'pattern') setCustomPatternFile(file); setError(''); setStatus(`${file.name} загружен`); }
     catch(e) { URL.revokeObjectURL(url); if (imageRequests.current[slot] === request) setError(`Не удалось открыть изображение: ${e.message || 'файл повреждён или формат не поддерживается.'}`); }
-  };
-  const clear = slot => { imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1; engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); };
-  const applyTexturePreset = async preset => {
+  }, []);
+  const clear = useCallback(slot => { imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1; engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); }, []);
+  const uploadPattern = useCallback(file => upload('pattern', file), [upload]);
+  const clearPattern = useCallback(() => clear('pattern'), [clear]);
+  const applyTexturePreset = useCallback(async preset => {
     const request = imageRequests.current.pattern = (imageRequests.current.pattern || 0) + 1;
     try {
       await engine.current.setImage('pattern', preset.url);
@@ -131,7 +135,7 @@ function App() {
       assetRefs.current = { ...assetRefs.current, pattern: { url: preset.url, name: preset.name, presetId: preset.id } };
       setAssets(assetRefs.current); setError(''); setStatus(`Текстура «${preset.name}» применена`);
     } catch (e) { if (imageRequests.current.pattern === request) setError(`Не удалось загрузить текстуру: ${e.message}`); }
-  };
+  }, []);
   const exportPNG = async () => { setExporting(true); setError(''); try { await engine.current.exportPNG(size, transparent); setStatus(`PNG ${size} × ${size} сохранён`); } catch(e) { setError(`Ошибка экспорта: ${e.message}`); } finally { setExporting(false); } };
   const chooseProjection = name => { setProjection(name); engine.current?.setProjection(name); };
   const saveView = () => { try { engine.current.saveDefaultView(); setStatus('Ракурс по умолчанию сохранён в этом браузере'); } catch { setError('Браузер не разрешил сохранить ракурс. Проверьте доступ к локальному хранилищу.'); } };
@@ -228,10 +232,10 @@ function App() {
   return <div className="app" aria-busy={batchBusy}>
     <header><a className="brand" href="./"><span className="brand-mark"><Box size={21}/></span>Glint<span className="beta">BETA</span></a><span className="header-note">Маленькая форма. Большие возможности.</span><span className="local"><span/>Работает локально</span><button className="theme-toggle" aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button></header>
     <main>
-      <GradientASCII className="main-ascii-background" aria-hidden="true" colors={['#7c2d12','#fc7703','#fdba74','#fff3e8']} shape="rise" scale={0.75} characters=" ·•●" cellSize={22} density={.8} glyphOpacity={.4} gradientOpacity={.65} glow={.15} grain={.1} variation={7} speed={.5} mouseInteraction={false} clickEffect="none" lightMode={theme === 'light'} dpr={1}/>
+      <ResponsiveBackground lightMode={theme === 'light'}/>
       <section className="workspace" aria-label="Редактор 3D-иконки">
         <div className="workspace-heading"><div><div className="eyebrow">YOUR NEXT ICON</div><h1>Создайте свою форму.</h1><p>Материал, свет и немного вашей индивидуальности.</p></div></div>
-        <div className="viewport"><div className="export-frame"><div className="export-canvas" ref={host} aria-label="3D-превью. Вращайте мышью, используйте колесо для приближения."/><span aria-hidden="true">PNG · 1:1</span><div className="canvas-hud"><CameraAxes orientation={cameraPose?.orientation}/><div className="viewport-bottom"><span><MousePointer2 size={13}/>Потяните для вращения <i/> Скролл для масштаба</span><span className="model-info">ICON.GLB <span> / </span> PBR MATERIAL</span></div></div></div></div>
+        <div className="viewport"><div className="export-frame"><div className="export-canvas" ref={host} aria-label="3D-превью. Вращайте мышью, используйте колесо для приближения."/><span aria-hidden="true">PNG · 1:1</span><FpsCounter engine={engine} ready={ready}/><div className="canvas-hud"><CameraAxes orientation={cameraPose?.orientation}/><div className="viewport-bottom"><span><MousePointer2 size={13}/>Потяните для вращения <i/> Скролл для масштаба</span><span className="model-info">ICON.GLB <span> / </span> PBR MATERIAL</span></div></div></div></div>
         {!ready && !error && <div className="loading"><Aperture size={24}/><span>{status}</span></div>}
         <div className="environment-heading"><div className="eyebrow">LIGHT & REFLECTIONS</div><h2>Настройте освещение.</h2><p>Окружение, свет и характер отражений.</p></div>
         <div className="environment-dock">
@@ -277,11 +281,11 @@ function App() {
         <div className="editor-main"><div className="tabs">{[['paint',Sparkles,'Материал'],['images',Layers,'Изображения'],['batch',Layers,'Пакетная обработка'],['templates',Box,'Шаблоны']].map(([id,Icon,label])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}<button className="reset" onClick={()=>{setSettings({...defaults});setStatus('Настройки материала сброшены');}} title="Сбросить настройки"><RotateCcw size={14}/><span>Сбросить</span></button></div>
           {tab==='paint' && <div className="controls-grid"><div className="control-column"><h2>Цвет основы <span>01</span></h2><div className="swatches">{swatches.map(c=><button key={c} style={{background:c}} className={settings.color===c?'chosen':''} aria-label={`Цвет ${c}`} aria-pressed={settings.color===c} onClick={()=>update('color',c)}>{settings.color===c && <Check size={14}/>}</button>)}</div><ColorPicker value={settings.color} onChange={color=>update('color',color)}/></div><div className="control-column"><h2>Поверхность <span>02</span></h2><Slider label="Металличность" value={settings.metalness} onChange={v=>update('metalness',v)}/><Slider label="Шероховатость" value={settings.roughness} onChange={v=>update('roughness',v)} min={.04}/><Slider label="Металлические частицы" value={settings.flakes} onChange={v=>update('flakes',v)}/><Slider label="Микрорельеф · Normal.webp" value={settings.normalStrength} onChange={v=>update('normalStrength',v)}/></div><div className="control-column"><h2>Лак и перелив <span>03</span></h2><Slider label="Прозрачный лак" value={settings.clearcoat} onChange={v=>update('clearcoat',v)}/><Slider label="Шероховатость лака" value={settings.coatRoughness} onChange={v=>update('coatRoughness',v)} min={.01}/><Slider label="Перламутровый перелив" value={settings.iridescence} onChange={v=>update('iridescence',v)}/><div className="tip"><Sparkles size={15}/><span>Перламутр может искажать цвета</span></div></div></div>}
           {tab==='batch' && <BatchPanel batch={batch} cameras={cameraPresets} environments={environmentPresets} materials={materials} camera={selectedCamera} environment={selectedEnvironment} material={selectedMaterial} onCamera={applyCameraPreset} onEnvironment={applyEnvironmentPreset} onMaterial={preset=>setSettings(s=>({...s,...preset.material}))}/>}
-          <div hidden={tab!=='templates'}><MaterialPresets settings={settings} presets={materialPresets} onChange={updateMaterialPresets} onApply={material=>setSettings(s=>({...s,...material}))}/></div>
+          {tab==='templates' && <MaterialPresets settings={settings} presets={materialPresets} onChange={updateMaterialPresets} onApply={material=>setSettings(s=>({...s,...material}))} name={materialDraft} onNameChange={setMaterialDraft}/>}
           {tab==='images' && <div className="images-grid">
             <section className="image-section image-library" aria-labelledby="texture-library-heading">
               <div className="image-section-heading"><h2 id="texture-library-heading">Паттерны</h2><span>Библиотека текстур</span></div>
-              <TexturePresets asset={assets.pattern} customFile={customPatternFile} onFile={f=>upload('pattern',f)} onPreset={applyTexturePreset} onClear={()=>clear('pattern')}/>
+              <TexturePresets asset={assets.pattern} customFile={customPatternFile} onFile={uploadPattern} onPreset={applyTexturePreset} onClear={clearPattern}/>
             </section>
             <section className="image-section image-logo" aria-labelledby="logo-heading">
               <div className="image-section-heading"><h2 id="logo-heading">Логотип</h2><span>UV {settings.logoUV + 1}</span></div>
@@ -307,7 +311,7 @@ function App() {
             const persisted = rememberWatermarkDisabled();
             setWatermarkEnabled(false);
             setStatus(persisted ? 'Вотермарка отключена для этого браузера' : 'Вотермарка отключена до закрытия страницы: хранилище недоступно');
-          }}>оставить звезду на гитхаб, и скачать без вотермарки</button>}
+          }}>Оставить звезду на GitHub и скачать без вотермарки</button>}
           <small aria-live="polite">{tab==='batch' ? (batchBusy ? `${Math.round(batch.progress/Math.max(1,batch.files.length)*100)}% · PNG → ZIP` : batch.archive ? `ZIP · ${batch.archive.count} PNG · ${(batch.archive.size/1024/1024).toFixed(1)} МБ` : 'Локально · PNG в ZIP-архиве') : `PNG · ${size/1024 >= 1 ? `${size/1024}K` : `${size}px`} · ${watermarkEnabled ? 'с вотермаркой' : 'без водяных знаков'}`}</small>{tab==='batch' && batch.archive && <button className="batch-repeat" onClick={batch.reset}>Обработать заново</button>}</aside>
       </section>
       {error && <div className="error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть ошибку"><X size={16}/></button></div>}

@@ -129,6 +129,8 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .viewport > .export-frame { position: relative; left: auto; top: auto; transform: none; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); overflow: hidden; pointer-events: auto; }
 .export-canvas { position: absolute; inset: 0; }
 .export-frame > span { pointer-events: none; }
+.canvas-fps { position: absolute; top: 12px; right: 12px; display: flex; align-items: baseline; gap: 6px; pointer-events: none; user-select: none; color: var(--muted); font-size: 9px; letter-spacing: 1px; }
+.canvas-fps strong { min-width: 3ch; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0; text-align: right; }
 .canvas-hud { position: absolute; right: 12px; bottom: 12px; max-width: calc(100% - 24px); display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; color: var(--muted); }
 .axis-indicator { display: block; width: 80px; height: 80px; overflow: visible; flex-shrink: 0; }
 .axis-indicator text { font: 9px system-ui, sans-serif; }
@@ -225,7 +227,7 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .export-button { background: var(--accent); border-color: var(--accent); color: #241407; box-shadow: 0 2px 5px #00000015; }
 .export-button > svg:last-child { color: #241407b3; }
 .export-button:hover { background: #ff8b26; border-color: #ff8b26; }
-.github-watermark-link { display: block; width: 100%; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 11px; line-height: 1.5; text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.github-watermark-link { display: block; width: 100%; margin-top: 10px; padding: 10px 12px; border: 1px solid #80808040; border-radius: 6px; background: #80808026; color: #fc7703; font: inherit; font-size: 11px; font-weight: 700; line-height: 1.5; text-align: center; cursor: pointer; }
 .github-watermark-link:hover:not(:disabled) { color: var(--accent-text); }
 .github-watermark-link:disabled { cursor: default; opacity: .6; }
 .texture-library-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -244,7 +246,8 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .texture-selected-mark { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; padding: 3px; border-radius: 4px; background: #141414; color: #fff; }
 .images-grid button:focus-visible, .texture-gallery-scroll:focus-visible { outline: auto; outline-offset: 2px; }
 .texture-custom { position: relative; min-width: 0; }
-.texture-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; aspect-ratio: 1; padding: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; }
+.texture-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; aspect-ratio: 1; padding: 10px; overflow: hidden; border: 1px solid var(--surface-glass-border); border-radius: 8px; color: var(--muted); background: var(--surface-glass-bg); cursor: pointer; }
+.texture-tile:hover:not(:disabled) { background: var(--surface-glass-hover); }
 .texture-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .texture-tile img { outline: 1px solid oklch(0 0 0 / .1); outline-offset: -1px; }
 [data-theme="dark"] .texture-tile img { outline-color: oklch(1 0 0 / .1); }
@@ -285,6 +288,7 @@ input[type='checkbox'] { accent-color: var(--accent); }
 main { position: relative; isolation: isolate; padding-bottom: 24px; }
 /* Viewport-sized layer: editor tab/content height must not resize the field. */
 main > .main-ascii-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+main > .mobile-gradient-background { background: radial-gradient(ellipse at 50% 100%, #fff3e8 0%, #fdba74 18%, #fc7703 40%, #7c2d12 65%, transparent 100%); opacity: .65; }
 .environment-dock { position: absolute; right: 25px; top: 135px; bottom: 63px; width: 270px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .environment-dock > * { width: 100%; flex-shrink: 0; }
 .environment-heading { position: absolute; right: 25px; top: 27px; width: 270px; }
@@ -400,6 +404,7 @@ main > .main-ascii-background { position: fixed; inset: 0; z-index: -1; pointer-
 
 /* «Туман»: shared 18% dark glass, matching the batch workflow cards. */
 .material-fog,
+.github-watermark-link,
 .glass-surface,
 .export-panel,
 .camera-panel,

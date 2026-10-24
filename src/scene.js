@@ -102,7 +102,8 @@ export class IconScene {
     this.flakes = this.createFlakes();
     this.observer = new ResizeObserver(() => this.resize()); this.observer.observe(host);
     this.resize();
-    this.tick = () => { if (this.dead) return; this.frame = requestAnimationFrame(this.tick); if(!this.exporting) { if (!this.batchProcessing) this.controls.update(); this.renderer.render(this.scene,this.camera); } };
+    this.previewFrames = 0;
+    this.tick = () => { if (this.dead) return; this.frame = requestAnimationFrame(this.tick); if(!this.exporting) { if (!this.batchProcessing) this.controls.update(); this.renderer.render(this.scene,this.camera); this.previewFrames++; } };
     this.tick();
   }
   createFlakes() {
