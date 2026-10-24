@@ -11,6 +11,7 @@ import ColorPicker from './components/ColorPicker.jsx';
 import MaterialPresets from './components/MaterialPresets.jsx';
 import CameraAxes from './components/CameraAxes.jsx';
 import BatchPanel from './components/BatchPanel.jsx';
+import TexturePresets from './components/TexturePresets.jsx';
 import { useBatch } from './use-batch.js';
 import { materialOptions, sameMaterial, sameCamera, sameEnvironment } from './batch.js';
 import { builtInMaterialPresets, loadMaterialPresets, materialPresetsKey, snapshotMaterial } from './material-presets.js';
@@ -37,6 +38,8 @@ function App() {
   const [tab, setTab] = useState('paint');
   const [watermarkEnabled, setWatermarkEnabled] = useState(() => isWatermarkEnabled());
   const [assets, setAssets] = useState(defaultAssets); const assetRefs = useRef(defaultAssets);
+  const [customPatternFile, setCustomPatternFile] = useState(null);
+  const imageRequests = useRef({});
   const [cameraPose, setCameraPose] = useState(null);
   const [fov, setFov] = useState(32);
   const [cameraPresets, setCameraPresets] = useState(loadCameraPresets);
@@ -113,10 +116,22 @@ function App() {
     if(file.size > 20*1024*1024) { setError('Максимальный размер изображения — 20 МБ.'); return; }
     if(!['image/png','image/jpeg','image/webp'].includes(file.type)) { setError('Выберите изображение PNG, JPEG или WebP.'); return; }
     const url = URL.createObjectURL(file);
-    try { await engine.current.setImage(slot, url); const previous = assetRefs.current[slot]; if (previous) URL.revokeObjectURL(previous.url); const asset = {url, name: file.name}; assetRefs.current = {...assetRefs.current, [slot]: asset}; setAssets(assetRefs.current); setError(''); setStatus(`${file.name} загружен`); }
-    catch(e) { URL.revokeObjectURL(url); setError(`Не удалось открыть изображение: ${e.message || 'файл повреждён или формат не поддерживается.'}`); }
+    const request = imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1;
+    try { await engine.current.setImage(slot, url); if (imageRequests.current[slot] !== request) { URL.revokeObjectURL(url); return; } const previous = assetRefs.current[slot]; if (previous) URL.revokeObjectURL(previous.url); const asset = {url, name: file.name}; assetRefs.current = {...assetRefs.current, [slot]: asset}; setAssets(assetRefs.current); if (slot === 'pattern') setCustomPatternFile(file); setError(''); setStatus(`${file.name} загружен`); }
+    catch(e) { URL.revokeObjectURL(url); if (imageRequests.current[slot] === request) setError(`Не удалось открыть изображение: ${e.message || 'файл повреждён или формат не поддерживается.'}`); }
   };
-  const clear = slot => { engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); };
+  const clear = slot => { imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1; engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); };
+  const applyTexturePreset = async preset => {
+    const request = imageRequests.current.pattern = (imageRequests.current.pattern || 0) + 1;
+    try {
+      await engine.current.setImage('pattern', preset.url);
+      if (imageRequests.current.pattern !== request) return;
+      const previous = assetRefs.current.pattern;
+      if (previous) URL.revokeObjectURL(previous.url);
+      assetRefs.current = { ...assetRefs.current, pattern: { url: preset.url, name: preset.name, presetId: preset.id } };
+      setAssets(assetRefs.current); setError(''); setStatus(`Текстура «${preset.name}» применена`);
+    } catch (e) { if (imageRequests.current.pattern === request) setError(`Не удалось загрузить текстуру: ${e.message}`); }
+  };
   const exportPNG = async () => { setExporting(true); setError(''); try { await engine.current.exportPNG(size, transparent); setStatus(`PNG ${size} × ${size} сохранён`); } catch(e) { setError(`Ошибка экспорта: ${e.message}`); } finally { setExporting(false); } };
   const chooseProjection = name => { setProjection(name); engine.current?.setProjection(name); };
   const saveView = () => { try { engine.current.saveDefaultView(); setStatus('Ракурс по умолчанию сохранён в этом браузере'); } catch { setError('Браузер не разрешил сохранить ракурс. Проверьте доступ к локальному хранилищу.'); } };
@@ -263,23 +278,27 @@ function App() {
           {tab==='paint' && <div className="controls-grid"><div className="control-column"><h2>Цвет основы <span>01</span></h2><div className="swatches">{swatches.map(c=><button key={c} style={{background:c}} className={settings.color===c?'chosen':''} aria-label={`Цвет ${c}`} aria-pressed={settings.color===c} onClick={()=>update('color',c)}>{settings.color===c && <Check size={14}/>}</button>)}</div><ColorPicker value={settings.color} onChange={color=>update('color',color)}/></div><div className="control-column"><h2>Поверхность <span>02</span></h2><Slider label="Металличность" value={settings.metalness} onChange={v=>update('metalness',v)}/><Slider label="Шероховатость" value={settings.roughness} onChange={v=>update('roughness',v)} min={.04}/><Slider label="Металлические частицы" value={settings.flakes} onChange={v=>update('flakes',v)}/><Slider label="Микрорельеф · Normal.webp" value={settings.normalStrength} onChange={v=>update('normalStrength',v)}/></div><div className="control-column"><h2>Лак и перелив <span>03</span></h2><Slider label="Прозрачный лак" value={settings.clearcoat} onChange={v=>update('clearcoat',v)}/><Slider label="Шероховатость лака" value={settings.coatRoughness} onChange={v=>update('coatRoughness',v)} min={.01}/><Slider label="Перламутровый перелив" value={settings.iridescence} onChange={v=>update('iridescence',v)}/><div className="tip"><Sparkles size={15}/><span>Перламутр может искажать цвета</span></div></div></div>}
           {tab==='batch' && <BatchPanel batch={batch} cameras={cameraPresets} environments={environmentPresets} materials={materials} camera={selectedCamera} environment={selectedEnvironment} material={selectedMaterial} onCamera={applyCameraPreset} onEnvironment={applyEnvironmentPreset} onMaterial={preset=>setSettings(s=>({...s,...preset.material}))}/>}
           <div hidden={tab!=='templates'}><MaterialPresets settings={settings} presets={materialPresets} onChange={updateMaterialPresets} onApply={material=>setSettings(s=>({...s,...material}))}/></div>
-          {tab==='images' && <div className="controls-grid images-grid">
-            <div className="control-column">
-              <h2>Логотип <span>UV {settings.logoUV + 1}</span></h2>
+          {tab==='images' && <div className="images-grid">
+            <section className="image-section image-library" aria-labelledby="texture-library-heading">
+              <div className="image-section-heading"><h2 id="texture-library-heading">Паттерны</h2><span>Библиотека текстур</span></div>
+              <TexturePresets asset={assets.pattern} customFile={customPatternFile} onFile={f=>upload('pattern',f)} onPreset={applyTexturePreset} onClear={()=>clear('pattern')}/>
+            </section>
+            <section className="image-section image-logo" aria-labelledby="logo-heading">
+              <div className="image-section-heading"><h2 id="logo-heading">Логотип</h2><span>UV {settings.logoUV + 1}</span></div>
               <Upload title="Загрузить логотип" subtitle="PNG, WEBP, JPG · до 20 МБ" asset={assets.logo} onFile={f=>upload('logo',f)} onClear={()=>clear('logo')}/>
               <Slider label="Размер логотипа" value={settings.logoScale} min={.1} max={1.5} onChange={v=>update('logoScale',v)}/>
               <div className="mini-sliders"><Slider label="Сдвиг X" min={-.5} max={.5} value={settings.logoX} onChange={v=>update('logoX',v)}/><Slider label="Сдвиг Y" min={-.5} max={.5} value={settings.logoY} onChange={v=>update('logoY',v)}/></div>
               <label className="select-row">UV логотипа<select aria-label="UV логотипа" value={settings.logoUV} onChange={e=>update('logoUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
-            </div>
-            <div className="control-column">
-              <h2>Паттерн краски <span>UV {settings.patternUV + 1}</span></h2>
-              <Upload title="Загрузить паттерн" subtitle="Общая текстура для всей модели" asset={assets.pattern} onFile={f=>upload('pattern',f)} onClear={()=>clear('pattern')}/>
+            </section>
+            <section className="image-section image-texture-settings" aria-labelledby="texture-settings-heading">
+              <div className="image-section-heading"><h2 id="texture-settings-heading">Настройки паттерна</h2><span>UV {settings.patternUV + 1}</span></div>
               <label className="select-row">UV текстуры<select aria-label="UV текстуры" value={settings.patternUV} onChange={e=>update('patternUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
-              <Slider label="Выраженность" value={settings.patternStrength} onChange={v=>update('patternStrength',v)}/>
+              <label className="select-row">Режим паттерна<select aria-label="Режим паттерна" value={settings.patternMode} onChange={e=>update('patternMode',e.target.value)}><option value="color">Цвет</option><option value="roughness">Поверхность</option></select></label>
+              <Slider label="Прозрачность" value={settings.patternStrength} onChange={v=>update('patternStrength',v)}/>
               <Slider label="Масштаб" value={settings.patternScale} min={.25} max={8} onChange={v=>update('patternScale',v)}/>
               <Slider label="Поворот" value={settings.patternRotation} min={0} max={360} step={1} unit="°" onChange={v=>update('patternRotation',v)}/>
               <div className="mini-sliders"><Slider label="Смещение X" min={-1} max={1} value={settings.patternX} onChange={v=>update('patternX',v)}/><Slider label="Смещение Y" min={-1} max={1} value={settings.patternY} onChange={v=>update('patternY',v)}/></div>
-            </div>
+            </section>
           </div>}
         </div>
         <aside className="export-panel"><div className="export-title"><ArrowDownToLine size={18}/><h2>Забрать с собой</h2></div><p>{tab==='batch' ? 'Каждый логотип — отдельная иконка.' : 'Ваша иконка. Во всех деталях.'}</p><label className="export-label">Размер изображения<select disabled={batchBusy} value={size} onChange={e=>setSize(Number(e.target.value))}>{[512,1024,2048,4096].map(n=><option key={n} value={n}>{n} × {n} px</option>)}</select></label><label className="checkbox"><input type="checkbox" disabled={batchBusy} checked={transparent} onChange={e=>setTransparent(e.target.checked)}/><span className="checker"/>Прозрачный фон</label><button className="export-button" disabled={!ready || exporting || environmentLoading || batchBusy || (tab==='batch' && (!batch.files.length || !environmentPresetsLoaded))} onClick={tab==='batch' ? (batch.archive ? batch.download : batch.start) : exportPNG}><ArrowDownToLine size={17}/>{tab==='batch' ? (batchBusy ? `Обработка ${batch.progress}/${batch.files.length}` : batch.archive ? 'Скачать архив' : 'Начать пакетную обработку') : exporting ? 'Сохраняем…' : 'Скачать PNG'}<MoveUpRight size={16}/></button>

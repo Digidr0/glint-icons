@@ -1,7 +1,38 @@
 /* Semantic palette: this layer owns all interface colors in both themes.
    Material swatches, uploaded images and the WebGL scene are not recolored. */
-.images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 600px) { .images-grid { grid-template-columns: 1fr; } }
+.editor-main { container-type: inline-size; }
+.images-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 290px); gap: 0 24px; padding: 24px; align-items: start; }
+.image-section { min-width: 0; }
+.image-library { grid-row: 1 / 3; align-self: stretch; padding-right: 24px; border-right: 1px solid var(--divider); }
+.image-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.image-section-heading h2 { font-size: 12px; }
+.image-section-heading > span { font-size: 10px; color: var(--muted); }
+.image-logo { padding-bottom: 20px; }
+.image-texture-settings { border-top: 1px solid var(--divider); padding-top: 20px; }
+.images-grid .slider { margin-bottom: 16px; }
+.images-grid .slider > span { font-size: 11px; }
+.images-grid .mini-sliders { gap: 16px; }
+.images-grid .select-row { font-size: 10px; margin: 0 0 16px; gap: 8px; }
+.images-grid .select-row select { min-width: 0; max-width: 65%; }
+.image-logo .upload { min-height: 52px; padding: 8px 32px 8px 10px; gap: 10px; }
+.image-logo .upload img { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; }
+.image-logo .upload > span:not(.upload-plus) { min-width: 0; }
+.image-logo .upload strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; font-size: 10px; }
+.image-logo .upload small { font-size: 9px; }
+.image-logo .upload-plus { display: none; }
+.image-logo .upload-wrap { margin-bottom: 16px; }
+.image-logo .remove { width: 24px; height: 24px; }
+@container (max-width: 760px) {
+  .images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 20px; }
+  .image-library { grid-column: 1 / -1; grid-row: auto; padding: 0 0 20px; border-right: 0; border-bottom: 1px solid var(--divider); }
+  .image-logo { padding: 0; }
+  .image-texture-settings { padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--divider); }
+}
+@container (max-width: 480px) {
+  .images-grid { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 20px; }
+  .image-texture-settings { padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--divider); }
+  .images-grid .texture-search input { font-size: 16px; }
+}
 :root {
   --ui-ready: 1;
   --surface-glass-bg: #2021252e;
@@ -197,6 +228,33 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .github-watermark-link { display: block; width: 100%; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 11px; line-height: 1.5; text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .github-watermark-link:hover:not(:disabled) { color: var(--accent-text); }
 .github-watermark-link:disabled { cursor: default; opacity: .6; }
+.texture-library-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.texture-search { display: flex; align-items: center; flex: 1; min-width: 0; gap: 8px; min-height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--field); color: var(--muted); }
+.texture-search input { width: 100%; min-width: 0; padding: 7px 0; background: none; border: 0; color: var(--text); font: inherit; font-size: 11px; }
+.texture-search input::-webkit-search-cancel-button { display: none; }
+.texture-search button { display: grid; place-items: center; flex-shrink: 0; width: 24px; height: 24px; border: 0; background: none; color: var(--text); }
+.texture-count { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.texture-gallery-scroll { max-height: 390px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; scrollbar-gutter: stable; padding: 3px; }
+.texture-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.texture-current { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 12px; font-size: 11px; }
+.texture-current > span { flex-shrink: 0; color: var(--muted); }
+.texture-current strong { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.texture-empty { margin: 16px 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.texture-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.texture-selected-mark { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; padding: 3px; border-radius: 4px; background: #141414; color: #fff; }
+.images-grid button:focus-visible, .texture-gallery-scroll:focus-visible { outline: auto; outline-offset: 2px; }
+.texture-custom { position: relative; min-width: 0; }
+.texture-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; aspect-ratio: 1; padding: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; }
+.texture-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.texture-tile img { outline: 1px solid oklch(0 0 0 / .1); outline-offset: -1px; }
+[data-theme="dark"] .texture-tile img { outline-color: oklch(1 0 0 / .1); }
+.texture-tile > span { position: absolute; bottom: 0; left: 0; right: 0; padding: 5px 3px; font-size: 9px; line-height: 1.2; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.texture-tile:has(img) > span { background: #0009; color: #fff; }
+.texture-tile > small { position: absolute; top: 4px; left: 5px; padding: 1px 4px; border-radius: 3px; background: #0008; color: white; font-size: 9px; }
+.texture-tile.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.texture-tile:disabled { opacity: .4; cursor: default; }
+.texture-replace { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 4px; color: white; background: #0009; cursor: pointer; }
+.texture-custom .texture-selected-mark { top: auto; bottom: 24px; }
 .upload { background: var(--field); border-color: var(--border); color: var(--accent-text); }
 .upload strong { color: var(--secondary); }
 .upload small { color: var(--muted); }

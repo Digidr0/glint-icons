@@ -151,7 +151,7 @@ export class IconScene {
     m.userData.uniforms = {
       studioPattern:{value:this.empty}, studioLogo:{value:this.empty}, studioFlakes:{value:this.flakes},
       studioHasPattern:{value:0}, studioHasLogo:{value:0},
-      studioPatternStrength:{value:.35}, studioPatternScale:{value:1}, studioPatternRotation:{value:0}, studioPatternOffset:{value:new THREE.Vector2()}, studioPatternRoughness:{value:0}, studioPatternUV:{value:0},
+      studioPatternStrength:{value:defaults.patternStrength}, studioPatternScale:{value:1}, studioPatternRotation:{value:0}, studioPatternOffset:{value:new THREE.Vector2()}, studioPatternRoughness:{value:0}, studioPatternUV:{value:0},
       studioLogoScale:{value:.65}, studioLogoOffset:{value:new THREE.Vector2()}, studioLogoUV:{value:1}, studioFlakeStrength:{value:.16},
     };
     m.onBeforeCompile = shader => {
@@ -198,7 +198,7 @@ export class IconScene {
       u.studioLogo.value = this.images.logo || this.empty;
       u.studioHasPattern.value = this.images.pattern ? 1 : 0;
       u.studioHasLogo.value = this.images.logo ? 1 : 0;
-      u.studioPatternStrength.value = s.patternStrength ?? .35;
+      u.studioPatternStrength.value = s.patternStrength ?? defaults.patternStrength;
       u.studioPatternScale.value = s.patternScale ?? 1;
       u.studioPatternRotation.value = THREE.MathUtils.degToRad(s.patternRotation ?? 0);
       u.studioPatternOffset.value.set(s.patternX || 0, -(s.patternY || 0));
