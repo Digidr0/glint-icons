@@ -77,7 +77,7 @@ export function useBatch({ engine, size, transparent, signature, prepare, onErro
   };
   const download = () => {
     if (!archive) return;
-    const a = document.createElement('a'); a.href = archive.url; a.download = 'icon-studio-batch.zip'; a.click();
+    const a = document.createElement('a'); a.href = archive.url; a.download = 'glint-icons-batch.zip'; a.click();
   };
   return { files, phase, progress, archive, notice, addFiles, removeFile, start, download, reset };
 }

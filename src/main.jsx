@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Box, ArrowDownToLine, RotateCcw, ImagePlus, X, MoveUpRight, Sparkles, Sun, Moon, Layers, Check, MousePointer2, Aperture, ChevronRight, Pause, Play } from 'lucide-react';
+import { Box, ArrowDownToLine, RotateCcw, ImagePlus, X, MoveUpRight, Sparkles, Sun, Moon, Layers, Check, MousePointer2, Aperture, ChevronRight } from 'lucide-react';
 import { IconScene } from './scene.js';
+import { uvChannels } from './uv-channels.js';
+import { githubURL, isWatermarkEnabled, rememberWatermarkDisabled } from './project.js';
 import { defaults } from './defaults.js';
 import { studioEnvironments } from './environments.js';
 import GradientASCII from './components/GradientASCII.jsx';
@@ -33,6 +35,7 @@ function Upload({ title, subtitle, asset, onFile, onClear }) {
 function App() {
   const host = useRef(); const engine = useRef(); const [settings, setSettings] = useState(defaults);
   const [tab, setTab] = useState('paint');
+  const [watermarkEnabled, setWatermarkEnabled] = useState(() => isWatermarkEnabled());
   const [assets, setAssets] = useState(defaultAssets); const assetRefs = useRef(defaultAssets);
   const [cameraPose, setCameraPose] = useState(null);
   const [fov, setFov] = useState(32);
@@ -48,10 +51,10 @@ function App() {
   const environmentPicker = useRef();
   const activeEnvironment = environments.find(item => item.id === environmentId);
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'light');
-  const [backgroundPaused, setBackgroundPaused] = useState(false);
   const [status, setStatus] = useState('Загрузка модели и студийного света…'); const [ready, setReady] = useState(false);
   const [error, setError] = useState(''); const [size, setSize] = useState(2048); const [transparent, setTransparent] = useState(true); const [exporting, setExporting] = useState(false); const [projection, setProjection] = useState('perspective');
   const update = (key, value) => setSettings(s => ({ ...s, [key]: value }));
+  useEffect(() => { if (engine.current) engine.current.watermarkEnabled = watermarkEnabled; }, [watermarkEnabled, ready]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#17181b' : '#f7f7f8');
@@ -200,7 +203,7 @@ function App() {
     }
     return created.length ? `Автоматически сохранены пресеты: ${created.join(', ')}.` : 'Используются сохранённые пресеты.';
   };
-  const batch = useBatch({ engine, size, transparent, signature: JSON.stringify({ settings, camera: currentCamera, cameraOrientation: cameraPose?.orientation, cameraDistance: cameraPose?.distanceExact, environmentId, pattern: assets.pattern?.url }), prepare: prepareBatch, onError: setError });
+  const batch = useBatch({ engine, size, transparent, signature: JSON.stringify({ watermarkEnabled, settings, camera: currentCamera, cameraOrientation: cameraPose?.orientation, cameraDistance: cameraPose?.distanceExact, environmentId, pattern: assets.pattern?.url }), prepare: prepareBatch, onError: setError });
   const batchBusy = batch.phase === 'running';
   useEffect(() => {
     const sections = document.querySelectorAll('.app > header, .workspace, .editor-main');
@@ -208,9 +211,9 @@ function App() {
     return () => sections.forEach(section => { section.inert = false; });
   }, [batchBusy]);
   return <div className="app" aria-busy={batchBusy}>
-    <header><a className="brand" href="./"><span className="brand-mark"><Box size={21}/></span>icon<span className="brand-light">studio</span><span className="beta">BETA</span></a><span className="header-note">Маленькая форма. Большие возможности.</span><span className="local"><span/>Работает локально</span><button className="background-motion-toggle" aria-label={backgroundPaused ? 'Продолжить анимацию фона' : 'Приостановить анимацию фона'} title={backgroundPaused ? 'Продолжить анимацию фона' : 'Приостановить анимацию фона'} onClick={() => setBackgroundPaused(p => !p)}>{backgroundPaused ? <Play size={11}/> : <Pause size={11}/>}<span>ASCII</span></button><button className="theme-toggle" aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button></header>
+    <header><a className="brand" href="./"><span className="brand-mark"><Box size={21}/></span>Glint<span className="beta">BETA</span></a><span className="header-note">Маленькая форма. Большие возможности.</span><span className="local"><span/>Работает локально</span><button className="theme-toggle" aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17}/> : <Moon size={17}/>}</button></header>
     <main>
-      <GradientASCII className="main-ascii-background" aria-hidden="true" colors={['#7c2d12','#fc7703','#fdba74','#fff3e8']} shape="rise" scale={0.75} characters=" =+xX0S8#@" cellSize={22} density={.8} glyphOpacity={.4} gradientOpacity={.65} glow={.15} grain={.1} variation={7} speed={.5} mouseInteraction={false} clickEffect="none" lightMode={theme === 'light'} dpr={1} paused={backgroundPaused}/>
+      <GradientASCII className="main-ascii-background" aria-hidden="true" colors={['#7c2d12','#fc7703','#fdba74','#fff3e8']} shape="rise" scale={0.75} characters=" ·•●" cellSize={22} density={.8} glyphOpacity={.4} gradientOpacity={.65} glow={.15} grain={.1} variation={7} speed={.5} mouseInteraction={false} clickEffect="none" lightMode={theme === 'light'} dpr={1}/>
       <section className="workspace" aria-label="Редактор 3D-иконки">
         <div className="workspace-heading"><div><div className="eyebrow">YOUR NEXT ICON</div><h1>Создайте свою форму.</h1><p>Материал, свет и немного вашей индивидуальности.</p></div></div>
         <div className="viewport"><div className="export-frame"><div className="export-canvas" ref={host} aria-label="3D-превью. Вращайте мышью, используйте колесо для приближения."/><span aria-hidden="true">PNG · 1:1</span><div className="canvas-hud"><CameraAxes orientation={cameraPose?.orientation}/><div className="viewport-bottom"><span><MousePointer2 size={13}/>Потяните для вращения <i/> Скролл для масштаба</span><span className="model-info">ICON.GLB <span> / </span> PBR MATERIAL</span></div></div></div></div>
@@ -256,31 +259,37 @@ function App() {
         </div>
       </section>
       <section className={`editor${tab==='batch' ? ' batch-mode' : ''}`} aria-label="Настройки иконки">
-        <div className="editor-main"><div className="tabs">{[['paint',Sparkles,'Краска'],['images',Layers,'Изображения'],['batch',Layers,'Пакетная обработка'],['templates',Box,'Шаблоны']].map(([id,Icon,label])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}<button className="reset" onClick={()=>{setSettings({...defaults});setStatus('Настройки материала сброшены');}} title="Сбросить настройки"><RotateCcw size={14}/><span>Сбросить</span></button></div>
-          {tab==='paint' && <div className="controls-grid"><div className="control-column"><h2>Цвет основы <span>01</span></h2><div className="swatches">{swatches.map(c=><button key={c} style={{background:c}} className={settings.color===c?'chosen':''} aria-label={`Цвет ${c}`} aria-pressed={settings.color===c} onClick={()=>update('color',c)}>{settings.color===c && <Check size={14}/>}</button>)}</div><ColorPicker value={settings.color} onChange={color=>update('color',color)}/></div><div className="control-column"><h2>Поверхность <span>02</span></h2><Slider label="Металличность" value={settings.metalness} onChange={v=>update('metalness',v)}/><Slider label="Шероховатость" value={settings.roughness} onChange={v=>update('roughness',v)} min={.04}/><Slider label="Металлические частицы" value={settings.flakes} onChange={v=>update('flakes',v)}/><Slider label="Микрорельеф · Normal.webp" value={settings.normalStrength} onChange={v=>update('normalStrength',v)}/></div><div className="control-column"><h2>Лак и перелив <span>03</span></h2><Slider label="Прозрачный лак" value={settings.clearcoat} onChange={v=>update('clearcoat',v)}/><Slider label="Шероховатость лака" value={settings.coatRoughness} onChange={v=>update('coatRoughness',v)} min={.01}/><Slider label="Перламутровый перелив" value={settings.iridescence} onChange={v=>update('iridescence',v)}/><div className="tip"><Sparkles size={15}/><span>Два слоя отражений.<br/>Тот самый car paint.</span></div></div></div>}
+        <div className="editor-main"><div className="tabs">{[['paint',Sparkles,'Материал'],['images',Layers,'Изображения'],['batch',Layers,'Пакетная обработка'],['templates',Box,'Шаблоны']].map(([id,Icon,label])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}<button className="reset" onClick={()=>{setSettings({...defaults});setStatus('Настройки материала сброшены');}} title="Сбросить настройки"><RotateCcw size={14}/><span>Сбросить</span></button></div>
+          {tab==='paint' && <div className="controls-grid"><div className="control-column"><h2>Цвет основы <span>01</span></h2><div className="swatches">{swatches.map(c=><button key={c} style={{background:c}} className={settings.color===c?'chosen':''} aria-label={`Цвет ${c}`} aria-pressed={settings.color===c} onClick={()=>update('color',c)}>{settings.color===c && <Check size={14}/>}</button>)}</div><ColorPicker value={settings.color} onChange={color=>update('color',color)}/></div><div className="control-column"><h2>Поверхность <span>02</span></h2><Slider label="Металличность" value={settings.metalness} onChange={v=>update('metalness',v)}/><Slider label="Шероховатость" value={settings.roughness} onChange={v=>update('roughness',v)} min={.04}/><Slider label="Металлические частицы" value={settings.flakes} onChange={v=>update('flakes',v)}/><Slider label="Микрорельеф · Normal.webp" value={settings.normalStrength} onChange={v=>update('normalStrength',v)}/></div><div className="control-column"><h2>Лак и перелив <span>03</span></h2><Slider label="Прозрачный лак" value={settings.clearcoat} onChange={v=>update('clearcoat',v)}/><Slider label="Шероховатость лака" value={settings.coatRoughness} onChange={v=>update('coatRoughness',v)} min={.01}/><Slider label="Перламутровый перелив" value={settings.iridescence} onChange={v=>update('iridescence',v)}/><div className="tip"><Sparkles size={15}/><span>Перламутр может искажать цвета</span></div></div></div>}
           {tab==='batch' && <BatchPanel batch={batch} cameras={cameraPresets} environments={environmentPresets} materials={materials} camera={selectedCamera} environment={selectedEnvironment} material={selectedMaterial} onCamera={applyCameraPreset} onEnvironment={applyEnvironmentPreset} onMaterial={preset=>setSettings(s=>({...s,...preset.material}))}/>}
           <div hidden={tab!=='templates'}><MaterialPresets settings={settings} presets={materialPresets} onChange={updateMaterialPresets} onApply={material=>setSettings(s=>({...s,...material}))}/></div>
           {tab==='images' && <div className="controls-grid images-grid">
             <div className="control-column">
-              <h2>Логотип <span>UV 1</span></h2>
+              <h2>Логотип <span>UV {settings.logoUV + 1}</span></h2>
               <Upload title="Загрузить логотип" subtitle="PNG, WEBP, JPG · до 20 МБ" asset={assets.logo} onFile={f=>upload('logo',f)} onClear={()=>clear('logo')}/>
               <Slider label="Размер логотипа" value={settings.logoScale} min={.1} max={1.5} onChange={v=>update('logoScale',v)}/>
               <div className="mini-sliders"><Slider label="Сдвиг X" min={-.5} max={.5} value={settings.logoX} onChange={v=>update('logoX',v)}/><Slider label="Сдвиг Y" min={-.5} max={.5} value={settings.logoY} onChange={v=>update('logoY',v)}/></div>
-              <label className="select-row">UV логотипа<select value={settings.logoUV} onChange={e=>update('logoUV',Number(e.target.value))}><option value={1}>UV1 · проекция</option><option value={0}>UV0 · атлас</option></select></label>
-              <p className="muted">Изображения остаются в вашем браузере и не отправляются на сервер.</p>
+              <label className="select-row">UV логотипа<select aria-label="UV логотипа" value={settings.logoUV} onChange={e=>update('logoUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
             </div>
             <div className="control-column">
-              <h2>Паттерн краски <span>UV 0</span></h2>
+              <h2>Паттерн краски <span>UV {settings.patternUV + 1}</span></h2>
               <Upload title="Загрузить паттерн" subtitle="Общая текстура для всей модели" asset={assets.pattern} onFile={f=>upload('pattern',f)} onClear={()=>clear('pattern')}/>
+              <label className="select-row">UV текстуры<select aria-label="UV текстуры" value={settings.patternUV} onChange={e=>update('patternUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
               <Slider label="Выраженность" value={settings.patternStrength} onChange={v=>update('patternStrength',v)}/>
               <Slider label="Масштаб" value={settings.patternScale} min={.25} max={8} onChange={v=>update('patternScale',v)}/>
               <Slider label="Поворот" value={settings.patternRotation} min={0} max={360} step={1} unit="°" onChange={v=>update('patternRotation',v)}/>
               <div className="mini-sliders"><Slider label="Смещение X" min={-1} max={1} value={settings.patternX} onChange={v=>update('patternX',v)}/><Slider label="Смещение Y" min={-1} max={1} value={settings.patternY} onChange={v=>update('patternY',v)}/></div>
-              <label className="select-row">Влияние<select value={settings.patternMode} onChange={e=>update('patternMode',e.target.value)}><option value="color">Цвет краски</option><option value="roughness">Шероховатость</option></select></label>
             </div>
           </div>}
         </div>
-        <aside className="export-panel"><div className="export-title"><ArrowDownToLine size={18}/><h2>Забрать с собой</h2></div><p>{tab==='batch' ? 'Каждый логотип — отдельная иконка.' : 'Ваша иконка. Во всех деталях.'}</p><label className="export-label">Размер изображения<select disabled={batchBusy} value={size} onChange={e=>setSize(Number(e.target.value))}>{[512,1024,2048,4096].map(n=><option key={n} value={n}>{n} × {n} px</option>)}</select></label><label className="checkbox"><input type="checkbox" disabled={batchBusy} checked={transparent} onChange={e=>setTransparent(e.target.checked)}/><span className="checker"/>Прозрачный фон</label><button className="export-button" disabled={!ready || exporting || environmentLoading || batchBusy || (tab==='batch' && (!batch.files.length || !environmentPresetsLoaded))} onClick={tab==='batch' ? (batch.archive ? batch.download : batch.start) : exportPNG}><ArrowDownToLine size={17}/>{tab==='batch' ? (batchBusy ? `Обработка ${batch.progress}/${batch.files.length}` : batch.archive ? 'Скачать архив' : 'Начать пакетную обработку') : exporting ? 'Сохраняем…' : 'Скачать PNG'}<MoveUpRight size={16}/></button><small aria-live="polite">{tab==='batch' ? (batchBusy ? `${Math.round(batch.progress/Math.max(1,batch.files.length)*100)}% · PNG → ZIP` : batch.archive ? `ZIP · ${batch.archive.count} PNG · ${(batch.archive.size/1024/1024).toFixed(1)} МБ` : 'Локально · PNG в ZIP-архиве') : `PNG · ${size/1024 >= 1 ? `${size/1024}K` : `${size}px`} · без водяных знаков`}</small>{tab==='batch' && batch.archive && <button className="batch-repeat" onClick={batch.reset}>Обработать заново</button>}</aside>
+        <aside className="export-panel"><div className="export-title"><ArrowDownToLine size={18}/><h2>Забрать с собой</h2></div><p>{tab==='batch' ? 'Каждый логотип — отдельная иконка.' : 'Ваша иконка. Во всех деталях.'}</p><label className="export-label">Размер изображения<select disabled={batchBusy} value={size} onChange={e=>setSize(Number(e.target.value))}>{[512,1024,2048,4096].map(n=><option key={n} value={n}>{n} × {n} px</option>)}</select></label><label className="checkbox"><input type="checkbox" disabled={batchBusy} checked={transparent} onChange={e=>setTransparent(e.target.checked)}/><span className="checker"/>Прозрачный фон</label><button className="export-button" disabled={!ready || exporting || environmentLoading || batchBusy || (tab==='batch' && (!batch.files.length || !environmentPresetsLoaded))} onClick={tab==='batch' ? (batch.archive ? batch.download : batch.start) : exportPNG}><ArrowDownToLine size={17}/>{tab==='batch' ? (batchBusy ? `Обработка ${batch.progress}/${batch.files.length}` : batch.archive ? 'Скачать архив' : 'Начать пакетную обработку') : exporting ? 'Сохраняем…' : 'Скачать PNG'}<MoveUpRight size={16}/></button>
+          {watermarkEnabled && <button className="github-watermark-link" disabled={!githubURL || batchBusy || exporting} title={!githubURL ? 'Ссылка на GitHub скоро появится' : 'Открыть GitHub и отключить вотермарку'} onClick={() => {
+            window.open(githubURL, '_blank', 'noopener,noreferrer');
+            const persisted = rememberWatermarkDisabled();
+            setWatermarkEnabled(false);
+            setStatus(persisted ? 'Вотермарка отключена для этого браузера' : 'Вотермарка отключена до закрытия страницы: хранилище недоступно');
+          }}>оставить звезду на гитхаб, и скачать без вотермарки</button>}
+          <small aria-live="polite">{tab==='batch' ? (batchBusy ? `${Math.round(batch.progress/Math.max(1,batch.files.length)*100)}% · PNG → ZIP` : batch.archive ? `ZIP · ${batch.archive.count} PNG · ${(batch.archive.size/1024/1024).toFixed(1)} МБ` : 'Локально · PNG в ZIP-архиве') : `PNG · ${size/1024 >= 1 ? `${size/1024}K` : `${size}px`} · ${watermarkEnabled ? 'с вотермаркой' : 'без водяных знаков'}`}</small>{tab==='batch' && batch.archive && <button className="batch-repeat" onClick={batch.reset}>Обработать заново</button>}</aside>
       </section>
       {error && <div className="error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть ошибку"><X size={16}/></button></div>}
     </main>

@@ -1,5 +1,5 @@
 // React Bits — GradientASCII (JavaScript + CSS), source supplied by the user.
-// Local additions: a paused prop, live reduced-motion support and guarded GL
+// Local additions: live reduced-motion support and guarded GL
 // initialization/cleanup. The gradient is independent of the exported 3D scene.
 import React, { useEffect, useRef } from 'react';
 import './GradientASCII.css';
@@ -338,7 +338,7 @@ export default function GradientASCII({
   flicker = .2, softness = .5, scale = 1, flow = .5, speed = 1,
   gradientOpacity = .9, grain = .08, variation = 0, mouseInteraction = true,
   scrambleRadius = .1, clickEffect = 'wave', intro = true, lightMode = false,
-  fontFamily = DEFAULT_FONT, dpr, paused = false, className = '', style, ...rest
+  fontFamily = DEFAULT_FONT, dpr, className = '', style, ...rest
 }) {
   const containerRef = useRef(null), canvasRef = useRef(null), wakeRef = useRef(null);
   const palette = (Array.isArray(colors) && colors.length ? colors : DEFAULT_COLORS).slice(0, MAX_COLORS);
@@ -351,7 +351,7 @@ export default function GradientASCII({
     flow: clamp(flow, 0, 2), speed: Math.max(0, speed), gradientOpacity: clamp(gradientOpacity, 0, 1),
     grain: clamp(grain, 0, .4), variation: Math.max(0, variation), mouseInteraction,
     scrambleRadius: clamp(scrambleRadius, .02, .4), clickEffect: CLICK_EFFECTS[clickEffect] ?? 1,
-    intro, lightMode, fontFamily: fontFamily || DEFAULT_FONT, dpr, paused,
+    intro, lightMode, fontFamily: fontFamily || DEFAULT_FONT, dpr,
   };
 
   useEffect(() => {
@@ -383,7 +383,7 @@ export default function GradientASCII({
     const clicks = [], clickData = new Float32Array(MAX_CLICKS * 4), trail = [], trailData = new Float32Array(MAX_TRAIL * 4);
     const pointer = { x: 0, y: 0, inside: false };
     let atlas = null, atlasKey = '', paletteKey = '', time = 0, glyphTime = 0;
-    let introClock = settingsRef.current.intro && !reduce && !settingsRef.current.paused ? 0 : 1;
+    let introClock = settingsRef.current.intro && !reduce ? 0 : 1;
     let frameSeed = 0, grainClock = 0, raf = 0, last = 0, visible = true, disposed = false;
 
     const syncAtlas = () => {
@@ -414,7 +414,7 @@ export default function GradientASCII({
       gl.uniform2f(u.uOffset, (width - Math.ceil(width / cellW) * cellW) / 2, (height - Math.ceil(height / cellH) * cellH) / 2);
       gl.uniform2f(u.uAtlasGrid, ...atlas.grid); gl.uniform1f(u.uCount, atlas.count);
       gl.uniform1f(u.uDensity, s.density); gl.uniform1f(u.uOpacity, s.glyphOpacity);
-      gl.uniform1f(u.uFlicker, reduce || s.paused ? 0 : s.flicker); gl.uniform1f(u.uDepth, s.depthOfField);
+      gl.uniform1f(u.uFlicker, reduce ? 0 : s.flicker); gl.uniform1f(u.uDepth, s.depthOfField);
       gl.uniform1f(u.uGlyphTime, glyphTime); gl.uniform1f(u.uSeedValue, s.variation); gl.uniform1f(u.uLight, s.lightMode ? 1 : 0);
     };
     const draw = () => {
@@ -479,7 +479,7 @@ export default function GradientASCII({
       if (disposed || !visible || document.hidden || gl.isContextLost()) return;
       const s = settingsRef.current, dt = last ? clamp((now - last) / 1000, .001, .05) : 1 / 60;
       last = now;
-      const active = !reduce && !s.paused;
+      const active = !reduce;
       if (active) {
         time += dt * s.speed * .5; glyphTime += dt * Math.max(s.speed, .15);
         if (introClock < 1) introClock = Math.min(1, introClock + dt / INTRO_SECONDS);
@@ -499,7 +499,7 @@ export default function GradientASCII({
     };
     const onPointerMove = e => {
       const s = settingsRef.current;
-      if (!s.mouseInteraction || reduce || s.paused) return;
+      if (!s.mouseInteraction || reduce) return;
       locate(e); if (!pointer.inside) return;
       const head = trail[0], gap = head ? Math.hypot(pointer.x - head.x, pointer.y - head.y) : Infinity;
       if (gap < TRAIL_STEP) return;
@@ -513,7 +513,7 @@ export default function GradientASCII({
     };
     const onPointerDown = e => {
       const s = settingsRef.current;
-      if (!s.clickEffect || reduce || s.paused) return;
+      if (!s.clickEffect || reduce) return;
       locate(e); if (!pointer.inside) return;
       clicks.unshift({ x: pointer.x, y: pointer.y, age: 0 }); if (clicks.length > MAX_CLICKS) clicks.pop(); wake();
     };

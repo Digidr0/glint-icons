@@ -1,0 +1,81 @@
+Glint — Free Forks, No Resale License
+
+Copyright (c) 2026 Digidro (GitHub: Digidr0). All rights reserved.
+
+1. Scope and ownership
+
+Except for third-party materials, the source code, application design,
+documentation, and original project assets in this repository (the Project)
+remain the property of their respective copyright holders. The limited
+permissions below are granted subject to this license. This is a custom
+source-available license, not an OSI-approved open-source license.
+
+2. Permission to use, fork, modify, and distribute for free
+
+You may use, copy, study, fork, modify, build, and redistribute the Project
+and modified versions without charge. You may also host the application
+without charging users for access. You may use the application in your own
+commercial workflow to create rendered images as described in section 4.
+
+All copies and substantial portions, including forks and modified versions,
+must retain the original copyright notices, this license, and applicable
+third-party notices. Modified versions must clearly identify that they are
+modified and must not imply endorsement by the original author. You may not
+relicense the original Project material under terms that permit its sale.
+
+Without prior written permission from the copyright holder, you may not
+sell, rent, sublicense for a fee, or charge for copies of the Project or any
+modified or derivative version. You may not provide paid access to it as a
+hosted service, API, subscription, paid feature, or embedded application.
+You may not evade this restriction by bundling the Project or a substantial
+portion of its code into a paid product or service. This restriction applies
+to original and modified versions, including rebranded forks.
+
+Charging for rendered images or design work is expressly permitted under
+section 4 and is not treated as selling the application. The sale restriction
+does not apply to independently created software that does not copy Project
+code or assets, or to third-party material licensed independently.
+
+3. Platform permissions and statutory rights
+
+Nothing here restricts rights expressly required by GitHub's Terms of Service
+for a public repository, including viewing and forking within GitHub as
+provided by those terms, or rights that applicable law does not allow to be
+restricted. The permissions in section 2 also apply to forks distributed
+outside GitHub, subject to this license's conditions and sale restrictions.
+
+4. Rendered images (PNG and other image exports)
+
+The restrictions on the Project do not apply to rendered images created
+using Glint. To the extent the copyright holder owns rights in Project
+elements appearing in those images, you receive a worldwide, royalty-free,
+non-exclusive, perpetual permission to use, copy, modify, distribute, sell,
+and otherwise commercially exploit those rendered images, without attribution
+or royalties to Glint. This includes exports of the built-in model and
+exports made without a watermark through the application's built-in option.
+
+This permission does not cover source models, source textures, code, or other
+Project files distributed separately from rendered images. It does not grant
+rights in third-party logos, trademarks, fonts, or other content you upload
+or incorporate. You are responsible for securing those rights. No transfer
+of ownership in user-provided content or independently created output is
+required by this license. No rights to the Glint name or branding as a
+product identity are granted.
+
+5. Third-party materials
+
+Third-party libraries, fonts, components, and assets remain governed by their
+own licenses. This license neither replaces nor limits rights granted under
+those licenses. See THIRD_PARTY_NOTICES.md, bundled font licenses, and the
+license files supplied with dependencies.
+
+6. No warranty; limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE PROJECT IS PROVIDED
+"AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR CLAIMS, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE PROJECT OR ITS USE.
+
+For permissions beyond this license, contact the copyright holder through
+https://github.com/Digidr0/glint-icons.

@@ -194,6 +194,9 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .export-button { background: var(--accent); border-color: var(--accent); color: #241407; box-shadow: 0 2px 5px #00000015; }
 .export-button > svg:last-child { color: #241407b3; }
 .export-button:hover { background: #ff8b26; border-color: #ff8b26; }
+.github-watermark-link { display: block; width: 100%; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 11px; line-height: 1.5; text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.github-watermark-link:hover:not(:disabled) { color: var(--accent-text); }
+.github-watermark-link:disabled { cursor: default; opacity: .6; }
 .upload { background: var(--field); border-color: var(--border); color: var(--accent-text); }
 .upload strong { color: var(--secondary); }
 .upload small { color: var(--muted); }
@@ -224,9 +227,6 @@ input[type='checkbox'] { accent-color: var(--accent); }
 main { position: relative; isolation: isolate; padding-bottom: 24px; }
 /* Viewport-sized layer: editor tab/content height must not resize the field. */
 main > .main-ascii-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-.background-motion-toggle { display: flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 5px; min-width: 48px; min-height: 32px; padding: 4px 7px; color: var(--muted); background: var(--glass); border: 1px solid var(--glass-border); border-radius: 5px; font-size: 8px; backdrop-filter: blur(8px); }
-.background-motion-toggle:hover { color: var(--accent-text); }
-@media (prefers-reduced-motion: reduce) { .background-motion-toggle { display: none; } }
 .environment-dock { position: absolute; right: 25px; top: 135px; bottom: 63px; width: 270px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .environment-dock > * { width: 100%; flex-shrink: 0; }
 .environment-heading { position: absolute; right: 25px; top: 27px; width: 270px; }
@@ -306,8 +306,6 @@ main > .main-ascii-background { position: fixed; inset: 0; z-index: -1; pointer-
 }
 @media (max-width: 600px) {
   .workspace { height: 1320px; }
-  header .background-motion-toggle { min-width: 24px; width: 24px; padding: 4px; }
-  header .background-motion-toggle span { display: none; }
   .scene-sidebar { left: 16px; right: 16px; bottom: 395px; width: auto; gap: 8px; }
   .scene-sidebar .viewport-tools { position: static; width: 100%; }
   .scene-sidebar .segmented { flex: 1; justify-content: space-between; }
@@ -335,8 +333,6 @@ main > .main-ascii-background { position: fixed; inset: 0; z-index: -1; pointer-
   .hdri-card strong { white-space: normal; overflow-wrap: anywhere; }
 }
 @media (max-width: 360px) {
-  .background-motion-toggle { min-width: 24px; width: 24px; padding: 4px; }
-  .background-motion-toggle span { display: none; }
   .scene-sidebar { width: auto; }
   .scene-sidebar .camera-readout { gap: 8px; }
   .environment-dock { width: auto; min-width: 0; }

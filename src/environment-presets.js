@@ -24,7 +24,7 @@ function openDatabase() {
     request.onupgradeneeded = () => request.result.createObjectStore('state');
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('Закройте другие вкладки Icon Studio и повторите попытку.'));
+    request.onblocked = () => reject(new Error('Закройте другие вкладки Glint и повторите попытку.'));
   }).catch(error => { database = undefined; throw error; });
   return database;
 }

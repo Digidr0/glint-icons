@@ -4,16 +4,19 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { autoSmoothIcon } from './smooth-normals.js';
 import { defaults, defaultCamera, cameraStorageKey } from './defaults.js';
+import { normalizeUVChannel } from './uv-channels.js';
+import { loadWatermarkFont, drawWatermark } from './watermark.js';
 
 const modelURL = new URL('../3D/Icon.glb', import.meta.url).href;
 const normalURL = new URL('../3D/Normal.webp', import.meta.url).href;
 const hdrURL = new URL('../3D/studio_small_01_1k.hdr', import.meta.url).href;
 
-// Keep the source GLB untouched. Both UV sets are passed explicitly so the
+// Keep the source GLB untouched. All three UV sets are passed explicitly so the
 // pattern and decal can be transformed independently in the same PBR material.
 const shaderPars = `
 varying vec2 vStudioUV;
 varying vec2 vStudioLogoUV;
+varying vec2 vStudioFrontUV;
 varying vec3 vStudioPosition;
 varying vec3 vStudioNormal;
 uniform sampler2D studioPattern;
@@ -26,20 +29,33 @@ uniform float studioPatternScale;
 uniform float studioPatternRotation;
 uniform vec2 studioPatternOffset;
 uniform float studioPatternRoughness;
+uniform float studioPatternUV;
 uniform float studioLogoScale;
 uniform vec2 studioLogoOffset;
 uniform float studioLogoUV;
 uniform float studioFlakeStrength;
+vec2 sourceUVFor(float channel) {
+  if (channel > 1.5) return vStudioFrontUV;
+  return mix(vStudioUV, vStudioLogoUV, channel);
+}
+float frontMask() {
+  return smoothstep(0.75, 0.98, vStudioNormal.y) * step(0.17, vStudioPosition.y);
+}
 vec2 patternUV() {
   float a = studioPatternRotation;
-  return mat2(cos(a), -sin(a), sin(a), cos(a)) * (vStudioUV - 0.5) * studioPatternScale + 0.5 - studioPatternOffset;
+  vec2 sourceUV = sourceUVFor(studioPatternUV);
+  return mat2(cos(a), -sin(a), sin(a), cos(a)) * (sourceUV - 0.5) * studioPatternScale + 0.5 - studioPatternOffset;
 }
-vec4 patternSample() { return texture2D(studioPattern, patternUV()); }
+vec4 patternSample() {
+  vec4 pattern = texture2D(studioPattern, patternUV());
+  if (studioPatternUV > 1.5) pattern.a *= frontMask();
+  return pattern;
+}
 vec4 logoSample() {
-  vec2 sourceUV = mix(vStudioUV, vStudioLogoUV, studioLogoUV);
+  vec2 sourceUV = sourceUVFor(studioLogoUV);
   vec2 p = (sourceUV - 0.5 - studioLogoOffset) / studioLogoScale + 0.5;
   float inside = step(0.0, p.x) * step(p.x, 1.0) * step(0.0, p.y) * step(p.y, 1.0);
-  float front = smoothstep(0.75, 0.98, vStudioNormal.y) * step(0.17, vStudioPosition.y);
+  float front = frontMask();
   vec4 logo = texture2D(studioLogo, clamp(p, 0.0, 1.0));
   logo.a *= inside * front * studioHasLogo;
   return logo;
@@ -115,6 +131,8 @@ export class IconScene {
       if(!geometry.getAttribute('uv') || !geometry.getAttribute('uv1')) throw new Error('В модели необходимы UV0 и UV1.');
       geometry.setAttribute('studioUV', geometry.getAttribute('uv'));
       geometry.setAttribute('studioLogoUV', geometry.getAttribute('uv1'));
+      // Older two-channel models can still use the front-only projection.
+      geometry.setAttribute('studioFrontUV', geometry.getAttribute('uv2') || geometry.getAttribute('uv1'));
       const old = Array.isArray(obj.material)?obj.material:[obj.material]; old.forEach(m=>m.dispose());
       // One continuous paint material; the shader masks the logo to the front.
       const material = this.makeMaterial();
@@ -133,13 +151,13 @@ export class IconScene {
     m.userData.uniforms = {
       studioPattern:{value:this.empty}, studioLogo:{value:this.empty}, studioFlakes:{value:this.flakes},
       studioHasPattern:{value:0}, studioHasLogo:{value:0},
-      studioPatternStrength:{value:.35}, studioPatternScale:{value:1}, studioPatternRotation:{value:0}, studioPatternOffset:{value:new THREE.Vector2()}, studioPatternRoughness:{value:0},
+      studioPatternStrength:{value:.35}, studioPatternScale:{value:1}, studioPatternRotation:{value:0}, studioPatternOffset:{value:new THREE.Vector2()}, studioPatternRoughness:{value:0}, studioPatternUV:{value:0},
       studioLogoScale:{value:.65}, studioLogoOffset:{value:new THREE.Vector2()}, studioLogoUV:{value:1}, studioFlakeStrength:{value:.16},
     };
     m.onBeforeCompile = shader => {
       Object.assign(shader.uniforms,m.userData.uniforms);
-      shader.vertexShader = `attribute vec2 studioUV; attribute vec2 studioLogoUV; varying vec2 vStudioUV; varying vec2 vStudioLogoUV; varying vec3 vStudioPosition; varying vec3 vStudioNormal;\n` + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStudioUV=studioUV; vStudioLogoUV=studioLogoUV; vStudioPosition=position; vStudioNormal=normal;');
+      shader.vertexShader = `attribute vec2 studioUV; attribute vec2 studioLogoUV; attribute vec2 studioFrontUV; varying vec2 vStudioUV; varying vec2 vStudioLogoUV; varying vec2 vStudioFrontUV; varying vec3 vStudioPosition; varying vec3 vStudioNormal;\n` + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStudioUV=studioUV; vStudioLogoUV=studioLogoUV; vStudioFrontUV=studioFrontUV; vStudioPosition=position; vStudioNormal=normal;');
       shader.fragmentShader = shaderPars + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         vec4 paintPattern = patternSample();
@@ -159,7 +177,7 @@ export class IconScene {
         normal = normalize(normal + vec3(flakeNormal.xy * studioFlakeStrength * 0.2, 0.0));
       `);
     };
-    m.customProgramCacheKey = () => 'icon-studio-paint-v2';
+    m.customProgramCacheKey = () => 'glint-icons-paint-v2';
     return m;
   }
   update(s) {
@@ -185,9 +203,10 @@ export class IconScene {
       u.studioPatternRotation.value = THREE.MathUtils.degToRad(s.patternRotation ?? 0);
       u.studioPatternOffset.value.set(s.patternX || 0, -(s.patternY || 0));
       u.studioPatternRoughness.value = s.patternMode==='roughness' ? 1 : 0;
+      u.studioPatternUV.value = normalizeUVChannel(s.patternUV);
       u.studioLogoScale.value = s.logoScale ?? .65;
       u.studioLogoOffset.value.set(s.logoX || 0, -(s.logoY || 0));
-      u.studioLogoUV.value = s.logoUV ?? 1;
+      u.studioLogoUV.value = normalizeUVChannel(s.logoUV, defaults.logoUV);
       u.studioFlakeStrength.value = s.flakes ?? .16;
     }
   }
@@ -303,6 +322,8 @@ export class IconScene {
   }
   async renderPNGBlob(size, transparent) {
     if(size > this.renderer.capabilities.maxTextureSize || size > this.renderer.getContext().getParameter(this.renderer.getContext().MAX_RENDERBUFFER_SIZE)) throw new Error('Этот GPU не поддерживает выбранный размер.');
+    const watermarkEnabled = this.watermarkEnabled !== false;
+    if (watermarkEnabled) await loadWatermarkFont();
     this.exporting = true;
     const ratio = this.renderer.getPixelRatio(), aspect = this.camera.aspect, fov = this.camera.fov;
     try {
@@ -311,7 +332,12 @@ export class IconScene {
       this.camera.updateProjectionMatrix();
       this.renderer.setClearColor(transparent?0x000000:0xe9eaed,transparent?0:1);
       this.renderer.render(this.scene,this.camera);
-      return await new Promise((resolve,reject) => this.renderer.domElement.toBlob(b => b?resolve(b):reject(new Error('Не удалось создать PNG.')), 'image/png'));
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Не удалось создать изображение для экспорта.');
+      ctx.drawImage(this.renderer.domElement, 0, 0);
+      if (watermarkEnabled) drawWatermark(ctx, size, size);
+      return await new Promise((resolve,reject) => canvas.toBlob(b => b?resolve(b):reject(new Error('Не удалось создать PNG.')), 'image/png'));
     } finally {
       this.renderer.setClearColor(0x000000,0); this.renderer.setPixelRatio(ratio);
       this.camera.aspect=aspect; this.camera.fov=fov; this.camera.updateProjectionMatrix(); this.exporting=false; this.resize();
@@ -320,7 +346,7 @@ export class IconScene {
   async exportPNG(size, transparent) {
     const blob = await this.renderPNGBlob(size, transparent);
     const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href=url; a.download=`icon-studio-${size}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+    a.href=url; a.download=`glint-icons-${size}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
   }
   async renderBatch(files, size, transparent, onImage) {
     const originalLogo = this.images.logo, enabled = this.controls.enabled;
