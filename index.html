@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ru" data-booting><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#f7f7f8"/><script src="/theme-init.js"></script><link rel="icon" type="image/svg+xml" href="/favicon.svg"/><title>Icon Studio — 3D icon generator</title><style>
+html { background: #f7f7f8; } html[data-theme="dark"] { background: #17181b; }
+html[data-booting] #root { visibility: hidden; }
+#page-loader { position: fixed; inset: 0; z-index: 1000; display: grid; place-content: center; justify-items: center; gap: 16px; background: #f7f7f8; color: #666872; font: 13px system-ui, sans-serif; }
+html[data-theme="dark"] #page-loader { background: #17181b; color: #babcc5; }
+#page-loader::before { content: ''; width: 28px; height: 28px; border: 2px solid #fc770330; border-top-color: #fc7703; border-radius: 50%; animation: boot-spin .8s linear infinite; }
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #page-loader::before { animation: none; } }
+</style></head><body><div id="page-loader" role="status">Загружаем Icon Studio…</div><noscript>Для работы Icon Studio включите JavaScript.</noscript><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>

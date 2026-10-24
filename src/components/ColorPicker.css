@@ -1,0 +1,18 @@
+.custom-color-picker { margin-bottom: 16px; }
+.color-sv { position: relative; height: 50px; border-radius: 7px; border: 1px solid var(--glass-border); background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), hsl(var(--hue) 100% 50%); touch-action: none; cursor: crosshair; }
+.color-sv-marker { position: absolute; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #0008, 0 1px 4px #0005; transform: translate(-50%, -50%); pointer-events: none; }
+.color-hue-label { display: block; margin: 12px 0; color: var(--secondary); font-size: 10px; }
+.color-hue-label > span { display: flex; justify-content: space-between; margin-bottom: 7px; }
+.color-hue-label output { color: var(--muted); font-variant-numeric: tabular-nums; }
+.color-hue { display: block; appearance: none; width: 100%; height: 12px; margin: 0; border-radius: 6px; background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); cursor: pointer; }
+.color-hue::-webkit-slider-thumb { appearance: none; width: 9px; height: 18px; border: 2px solid #fff; border-radius: 4px; background: transparent; box-shadow: 0 0 2px #000; }
+.color-hue::-moz-range-thumb { width: 5px; height: 14px; border: 2px solid #fff; border-radius: 4px; background: transparent; box-shadow: 0 0 2px #000; }
+.custom-color-hex { display: flex; align-items: center; gap: 9px; height: 36px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--field); }
+.color-picker-swatch { width: 22px; height: 22px; border: 1px solid var(--glass-border); border-radius: 3px; flex-shrink: 0; }
+.color-picker-panel { padding: 0; }
+.custom-color-hex input { min-width: 0; width: 100%; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 10px; letter-spacing: .5px; }
+.custom-color-hex small { color: var(--faint); font-size: 8px; }
+.color-sv-accessible { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.color-sv-accessible:focus-within { position: static; width: auto; height: auto; clip-path: none; font-size: 10px; color: var(--secondary); }
+.color-sv-accessible label { display: block; margin-bottom: 8px; }
+.color-sv-accessible input { width: 100%; accent-color: var(--accent); }
