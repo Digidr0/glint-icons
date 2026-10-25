@@ -14,7 +14,7 @@ export function hsvToHex({ h, s, v }) {
   return '#' + rgb.map(n => Math.round((n + m) * 255).toString(16).padStart(2, '0')).join('');
 }
 
-export default function ColorPicker({ value, onChange }) {
+export default function ColorPicker({ value, onChange, label = 'Цвет основы' }) {
   const [hsv, setHsv] = useState(() => hexToHsv(value));
   const [previous, setPrevious] = useState(value);
   const [draft, setDraft] = useState(value.toUpperCase());
@@ -40,7 +40,7 @@ export default function ColorPicker({ value, onChange }) {
       change({ ...next, h: next.s === 0 ? hsv.h : next.h });
     } else setDraft(value.toUpperCase());
   };
-  return <div className="custom-color-picker" role="group" aria-label="Цвет основы">
+  return <div className="custom-color-picker" role="group" aria-label={label}>
     <div className="custom-color-hex"><span className="color-picker-swatch" aria-hidden="true" style={{ background: value }}/><input aria-label="Цвет HEX" type="text" spellCheck={false} maxLength={7} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setDraft(value.toUpperCase()); }}/><small>HEX</small></div>
     <label className="color-hue-label"><span>Оттенок <output>{Math.round(hsv.h)}°</output></span><input className="color-hue" aria-label="Оттенок" type="range" min="0" max="359" step="1" value={hsv.h} onChange={e => change({ ...hsv, h: Number(e.target.value) })}/></label>
     <div className="color-picker-panel">

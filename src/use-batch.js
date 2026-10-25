@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Zip, ZipPassThrough } from 'fflate';
 import { batchFileNames } from './batch.js';
 
-export function useBatch({ engine, size, transparent, signature, prepare, onError }) {
+export function useBatch({ engine, size, transparent, backgroundColor, format = 'png', signature, prepare, onError }) {
   const [files, setFiles] = useState([]);
   const [phase, setPhase] = useState('idle');
   const [progress, setProgress] = useState(0);
@@ -13,7 +13,7 @@ export function useBatch({ engine, size, transparent, signature, prepare, onErro
     if (archiveURL.current) URL.revokeObjectURL(archiveURL.current);
     archiveURL.current = null; setArchive(null); setPhase('idle'); setProgress(0);
   };
-  useEffect(() => { reset(); }, [files, size, transparent, signature]);
+  useEffect(() => { reset(); }, [files, size, transparent, backgroundColor, format, signature]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -41,6 +41,11 @@ export function useBatch({ engine, size, transparent, signature, prepare, onErro
     if (item) { URL.revokeObjectURL(item.url); urls.current.delete(item.url); }
     setFiles(items => items.filter(file => file.id !== id)); setNotice('');
   };
+  const clearFiles = () => {
+    if (running.current) return;
+    urls.current.forEach(url => URL.revokeObjectURL(url)); urls.current.clear();
+    setFiles([]); setNotice(''); reset();
+  };
   const start = async () => {
     if (running.current || !files.length) return;
     running.current = true; setPhase('running'); setProgress(0); setNotice(''); onError('');
@@ -52,24 +57,24 @@ export function useBatch({ engine, size, transparent, signature, prepare, onErro
       setNotice(message);
       const chunks = []; let zipError;
       zip = new Zip((error, data) => { if (error) zipError = error; else chunks.push(data); });
-      const names = batchFileNames(files);
+      const names = batchFileNames(files, size, transparent ? 'png' : format);
       let bytes = 0;
       await engine.current.renderBatch(files, size, transparent, async (blob, index) => {
         if (!alive.current) throw new Error('Обработка остановлена.');
         bytes += blob.size;
-        if (bytes > 512 * 1024 * 1024) throw new Error('Архив превышает 512 МБ. Уменьшите размер PNG или количество файлов.');
+        if (bytes > 512 * 1024 * 1024) throw new Error('Архив превышает 512 МБ. Уменьшите разрешение или количество файлов.');
         const entry = new ZipPassThrough(names[index]);
         zip.add(entry); entry.push(new Uint8Array(await blob.arrayBuffer()), true);
         if (zipError) throw zipError;
         setProgress(index + 1);
         await new Promise(resolve => requestAnimationFrame(resolve));
-      });
+      }, { backgroundColor, format });
       zip.end();
       if (zipError) throw zipError;
       if (!alive.current) return;
       const blob = new Blob(chunks, { type: 'application/zip' });
       const url = URL.createObjectURL(blob); archiveURL.current = url;
-      setArchive({ url, count: files.length, size: blob.size }); setPhase('ready');
+      setArchive({ url, count: files.length, size: blob.size, resolution: size, format: transparent ? 'png' : format }); setPhase('ready');
     } catch (error) {
       zip?.terminate();
       if (alive.current) { setPhase('idle'); onError(`Пакетная обработка: ${error.message || 'не удалось создать архив.'}`); }
@@ -77,7 +82,7 @@ export function useBatch({ engine, size, transparent, signature, prepare, onErro
   };
   const download = () => {
     if (!archive) return;
-    const a = document.createElement('a'); a.href = archive.url; a.download = 'glint-icons-batch.zip'; a.click();
+    const a = document.createElement('a'); a.href = archive.url; a.download = `glint-icons-batch_x${archive.resolution}.zip`; a.click();
   };
-  return { files, phase, progress, archive, notice, addFiles, removeFile, start, download, reset };
+  return { files, phase, progress, archive, notice, addFiles, removeFile, clearFiles, start, download, reset };
 }

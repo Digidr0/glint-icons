@@ -321,7 +321,7 @@ export class IconScene {
     }
     this.camera.updateProjectionMatrix();
   }
-  async renderPNGBlob(size, transparent) {
+  async renderPNGBlob(size, transparent, { backgroundColor = '#e9eaed', format = 'png' } = {}) {
     if(size > this.renderer.capabilities.maxTextureSize || size > this.renderer.getContext().getParameter(this.renderer.getContext().MAX_RENDERBUFFER_SIZE)) throw new Error('Этот GPU не поддерживает выбранный размер.');
     const watermarkEnabled = this.watermarkEnabled !== false;
     if (watermarkEnabled) await loadWatermarkFont();
@@ -331,25 +331,27 @@ export class IconScene {
       this.renderer.setPixelRatio(1); this.renderer.setSize(size,size,false);
       if (this.camera.isPerspectiveCamera) { this.camera.aspect=1; this.camera.fov=this.baseFov; }
       this.camera.updateProjectionMatrix();
-      this.renderer.setClearColor(transparent?0x000000:0xe9eaed,transparent?0:1);
+      this.renderer.setClearColor(0x000000, 0);
       this.renderer.render(this.scene,this.camera);
       const canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Не удалось создать изображение для экспорта.');
+      if (!transparent) { ctx.fillStyle = backgroundColor; ctx.fillRect(0, 0, size, size); }
       ctx.drawImage(this.renderer.domElement, 0, 0);
       if (watermarkEnabled) drawWatermark(ctx, size, size);
-      return await new Promise((resolve,reject) => canvas.toBlob(b => b?resolve(b):reject(new Error('Не удалось создать PNG.')), 'image/png'));
+      const mime = !transparent && format === 'jpg' ? 'image/jpeg' : 'image/png';
+      return await new Promise((resolve,reject) => canvas.toBlob(b => b?resolve(b):reject(new Error('Не удалось создать изображение.')), mime, 0.92));
     } finally {
       this.renderer.setClearColor(0x000000,0); this.renderer.setPixelRatio(ratio);
       this.camera.aspect=aspect; this.camera.fov=fov; this.camera.updateProjectionMatrix(); this.exporting=false; this.resize();
     }
   }
-  async exportPNG(size, transparent) {
-    const blob = await this.renderPNGBlob(size, transparent);
+  async exportPNG(size, transparent, options = {}) {
+    const blob = await this.renderPNGBlob(size, transparent, options);
     const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href=url; a.download=`glint-icons-${size}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+    a.href=url; a.download=`glint-icons_x${size}.${!transparent && options.format === 'jpg' ? 'jpg' : 'png'}`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
   }
-  async renderBatch(files, size, transparent, onImage) {
+  async renderBatch(files, size, transparent, onImage, options = {}) {
     const originalLogo = this.images.logo, enabled = this.controls.enabled;
     this.batchProcessing = true; this.controls.enabled = false;
     // Detach without disposing: setImage may dispose only temporary batch logos.
@@ -359,7 +361,7 @@ export class IconScene {
         if (this.dead) throw new Error('Сцена закрыта.');
         try {
           await this.setImage('logo', files[index].url);
-          const blob = await this.renderPNGBlob(size, transparent);
+          const blob = await this.renderPNGBlob(size, transparent, options);
           await onImage(blob, index);
         } catch (error) { throw new Error(`${files[index].name}: ${error.message || 'изображение повреждено или не поддерживается.'}`); }
       }

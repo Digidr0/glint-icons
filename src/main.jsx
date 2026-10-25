@@ -14,7 +14,8 @@ import FpsCounter from './components/FpsCounter.jsx';
 import BatchPanel from './components/BatchPanel.jsx';
 import TexturePresets from './components/TexturePresets.jsx';
 import { useBatch } from './use-batch.js';
-import { materialOptions, sameMaterial, sameCamera, sameEnvironment } from './batch.js';
+import { materialOptions, sameMaterial, sameCamera, sameEnvironment, resolveBatchLogo } from './batch.js';
+import { estimatePNGBytes, formatFileSize } from './export-size.js';
 import { builtInMaterialPresets, loadMaterialPresets, materialPresetsKey, snapshotMaterial } from './material-presets.js';
 import defaultLogoURL from './assets/default-logo.svg';
 import { cameraPresetsKey, loadCameraPresets } from './camera-presets.js';
@@ -41,6 +42,8 @@ function App() {
   const [assets, setAssets] = useState(defaultAssets); const assetRefs = useRef(defaultAssets);
   const [customPatternFile, setCustomPatternFile] = useState(null);
   const imageRequests = useRef({});
+  const logoOwner = useRef(null);
+  const logoLoad = useRef(Promise.resolve());
   const [cameraPose, setCameraPose] = useState(null);
   const [fov, setFov] = useState(32);
   const [cameraPresets, setCameraPresets] = useState(loadCameraPresets);
@@ -114,17 +117,37 @@ function App() {
     document.addEventListener('pointerdown', closeGallery);
     return () => document.removeEventListener('pointerdown', closeGallery);
   }, []);
-  const upload = useCallback(async (slot, file) => {
+  const upload = useCallback(async (slot, file, batchId) => {
     if(file.size > 20*1024*1024) { setError('Максимальный размер изображения — 20 МБ.'); return; }
     if(!['image/png','image/jpeg','image/webp'].includes(file.type)) { setError('Выберите изображение PNG, JPEG или WebP.'); return; }
     const url = URL.createObjectURL(file);
     const request = imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1;
-    try { await engine.current.setImage(slot, url); if (imageRequests.current[slot] !== request) { URL.revokeObjectURL(url); return; } const previous = assetRefs.current[slot]; if (previous) URL.revokeObjectURL(previous.url); const asset = {url, name: file.name}; assetRefs.current = {...assetRefs.current, [slot]: asset}; setAssets(assetRefs.current); if (slot === 'pattern') setCustomPatternFile(file); setError(''); setStatus(`${file.name} загружен`); }
-    catch(e) { URL.revokeObjectURL(url); if (imageRequests.current[slot] === request) setError(`Не удалось открыть изображение: ${e.message || 'файл повреждён или формат не поддерживается.'}`); }
+    const previousOwner = logoOwner.current;
+    if (slot === 'logo') logoOwner.current = batchId ? { batchId } : { manual: true };
+    try {
+      const loading = engine.current.setImage(slot, url);
+      if (slot === 'logo') logoLoad.current = loading;
+      await loading;
+      if (imageRequests.current[slot] !== request) { URL.revokeObjectURL(url); return; }
+      const previous = assetRefs.current[slot]; if (previous) URL.revokeObjectURL(previous.url);
+      const asset = { url, name: file.name, ...(slot === 'logo' && batchId ? { batchId } : {}) };
+      assetRefs.current = { ...assetRefs.current, [slot]: asset }; setAssets(assetRefs.current);
+      if (slot === 'pattern') setCustomPatternFile(file);
+      setError(''); setStatus(`${file.name} загружен`);
+    } catch(e) {
+      URL.revokeObjectURL(url);
+      if (imageRequests.current[slot] === request) {
+        if (slot === 'logo') logoOwner.current = previousOwner;
+        setError(`Не удалось открыть изображение: ${e.message || 'файл повреждён или формат не поддерживается.'}`);
+      }
+    }
   }, []);
-  const clear = useCallback(slot => { imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1; engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); }, []);
+  const clear = useCallback(slot => { imageRequests.current[slot] = (imageRequests.current[slot] || 0) + 1; if (slot === 'logo') logoOwner.current = null; engine.current?.clearImage(slot); if(assetRefs.current[slot]) URL.revokeObjectURL(assetRefs.current[slot].url); const next = {...assetRefs.current}; delete next[slot]; assetRefs.current = next; setAssets(next); }, []);
   const uploadPattern = useCallback(file => upload('pattern', file), [upload]);
   const clearPattern = useCallback(() => clear('pattern'), [clear]);
+  const selectBatchLogo = useCallback(file => {
+    if (!engine.current?.batchProcessing) upload('logo', file.file, file.id);
+  }, [upload]);
   const applyTexturePreset = useCallback(async preset => {
     const request = imageRequests.current.pattern = (imageRequests.current.pattern || 0) + 1;
     try {
@@ -136,7 +159,10 @@ function App() {
       setAssets(assetRefs.current); setError(''); setStatus(`Текстура «${preset.name}» применена`);
     } catch (e) { if (imageRequests.current.pattern === request) setError(`Не удалось загрузить текстуру: ${e.message}`); }
   }, []);
-  const exportPNG = async () => { setExporting(true); setError(''); try { await engine.current.exportPNG(size, transparent); setStatus(`PNG ${size} × ${size} сохранён`); } catch(e) { setError(`Ошибка экспорта: ${e.message}`); } finally { setExporting(false); } };
+  const [backgroundColor, setBackgroundColor] = useState('#e9eaed');
+  const [opaqueFormat, setOpaqueFormat] = useState('png');
+  const format = transparent ? 'png' : opaqueFormat;
+  const exportPNG = async () => { setExporting(true); setError(''); try { await engine.current.exportPNG(size, transparent, { backgroundColor, format }); setStatus(`${format.toUpperCase()} ${size} × ${size} сохранён`); } catch(e) { setError(`Ошибка экспорта: ${e.message}`); } finally { setExporting(false); } };
   const chooseProjection = name => { setProjection(name); engine.current?.setProjection(name); };
   const saveView = () => { try { engine.current.saveDefaultView(); setStatus('Ракурс по умолчанию сохранён в этом браузере'); } catch { setError('Браузер не разрешил сохранить ракурс. Проверьте доступ к локальному хранилищу.'); } };
   const addCameraPreset = () => {
@@ -201,6 +227,8 @@ function App() {
   const selectedEnvironment = environmentPresets.find(preset => sameEnvironment(preset, environmentId, settings));
   const selectedMaterial = materials.find(preset => sameMaterial(settings, preset.material));
   const prepareBatch = async () => {
+    // Finish an in-flight editor logo upload before batch takes its snapshot.
+    await logoLoad.current.catch(() => {});
     const created = [];
     const actualCamera = { ...engine.current.getCameraPose(), fov };
     if (!cameraPresets.some(preset => sameCamera(preset, actualCamera))) {
@@ -222,8 +250,16 @@ function App() {
     }
     return created.length ? `Автоматически сохранены пресеты: ${created.join(', ')}.` : 'Используются сохранённые пресеты.';
   };
-  const batch = useBatch({ engine, size, transparent, signature: JSON.stringify({ watermarkEnabled, settings, camera: currentCamera, cameraOrientation: cameraPose?.orientation, cameraDistance: cameraPose?.distanceExact, environmentId, pattern: assets.pattern?.url }), prepare: prepareBatch, onError: setError });
+  const batch = useBatch({ engine, size, transparent, backgroundColor, format, signature: JSON.stringify({ watermarkEnabled, settings, camera: currentCamera, cameraOrientation: cameraPose?.orientation, cameraDistance: cameraPose?.distanceExact, environmentId, pattern: assets.pattern?.url }), prepare: prepareBatch, onError: setError });
   const batchBusy = batch.phase === 'running';
+  const previousBatchCount = useRef(0);
+  useEffect(() => {
+    if (!ready) return;
+    const next = resolveBatchLogo(batch.files, previousBatchCount.current, logoOwner.current?.batchId);
+    previousBatchCount.current = batch.files.length;
+    if (next === null) clear('logo');
+    else if (next) selectBatchLogo(next);
+  }, [ready, batch.files, selectBatchLogo, clear]);
   useEffect(() => {
     const sections = document.querySelectorAll('.app > header, .workspace, .editor-main');
     sections.forEach(section => { section.inert = batchBusy; });
@@ -280,7 +316,7 @@ function App() {
       <section className={`editor${tab==='batch' ? ' batch-mode' : ''}`} aria-label="Настройки иконки">
         <div className="editor-main"><div className="tabs">{[['paint',Sparkles,'Материал'],['images',Layers,'Изображения'],['batch',Layers,'Пакетная обработка'],['templates',Box,'Шаблоны']].map(([id,Icon,label])=><button key={id} className={tab===id?'selected':''} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}<button className="reset" onClick={()=>{setSettings({...defaults});setStatus('Настройки материала сброшены');}} title="Сбросить настройки"><RotateCcw size={14}/><span>Сбросить</span></button></div>
           {tab==='paint' && <div className="controls-grid"><div className="control-column"><h2>Цвет основы <span>01</span></h2><div className="swatches">{swatches.map(c=><button key={c} style={{background:c}} className={settings.color===c?'chosen':''} aria-label={`Цвет ${c}`} aria-pressed={settings.color===c} onClick={()=>update('color',c)}>{settings.color===c && <Check size={14}/>}</button>)}</div><ColorPicker value={settings.color} onChange={color=>update('color',color)}/></div><div className="control-column"><h2>Поверхность <span>02</span></h2><Slider label="Металличность" value={settings.metalness} onChange={v=>update('metalness',v)}/><Slider label="Шероховатость" value={settings.roughness} onChange={v=>update('roughness',v)} min={.04}/><Slider label="Металлические частицы" value={settings.flakes} onChange={v=>update('flakes',v)}/><Slider label="Микрорельеф · Normal.webp" value={settings.normalStrength} onChange={v=>update('normalStrength',v)}/></div><div className="control-column"><h2>Лак и перелив <span>03</span></h2><Slider label="Прозрачный лак" value={settings.clearcoat} onChange={v=>update('clearcoat',v)}/><Slider label="Шероховатость лака" value={settings.coatRoughness} onChange={v=>update('coatRoughness',v)} min={.01}/><Slider label="Перламутровый перелив" value={settings.iridescence} onChange={v=>update('iridescence',v)}/><div className="tip"><Sparkles size={15}/><span>Перламутр может искажать цвета</span></div></div></div>}
-          {tab==='batch' && <BatchPanel batch={batch} cameras={cameraPresets} environments={environmentPresets} materials={materials} camera={selectedCamera} environment={selectedEnvironment} material={selectedMaterial} onCamera={applyCameraPreset} onEnvironment={applyEnvironmentPreset} onMaterial={preset=>setSettings(s=>({...s,...preset.material}))}/>}
+          {tab==='batch' && <BatchPanel batch={batch} cameras={cameraPresets} environments={environmentPresets} materials={materials} camera={selectedCamera} environment={selectedEnvironment} material={selectedMaterial} onCamera={applyCameraPreset} onEnvironment={applyEnvironmentPreset} onMaterial={preset=>setSettings(s=>({...s,...preset.material}))} activeLogoId={assets.logo?.batchId} onLogoSelect={selectBatchLogo}/>}
           {tab==='templates' && <MaterialPresets settings={settings} presets={materialPresets} onChange={updateMaterialPresets} onApply={material=>setSettings(s=>({...s,...material}))} name={materialDraft} onNameChange={setMaterialDraft}/>}
           {tab==='images' && <div className="images-grid">
             <section className="image-section image-library" aria-labelledby="texture-library-heading">
@@ -290,14 +326,14 @@ function App() {
             <section className="image-section image-logo" aria-labelledby="logo-heading">
               <div className="image-section-heading"><h2 id="logo-heading">Логотип</h2><span>UV {settings.logoUV + 1}</span></div>
               <Upload title="Загрузить логотип" subtitle="PNG, WEBP, JPG · до 20 МБ" asset={assets.logo} onFile={f=>upload('logo',f)} onClear={()=>clear('logo')}/>
+              <label className="select-row">UV логотипа<select aria-label="UV логотипа" value={settings.logoUV} onChange={e=>update('logoUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
               <Slider label="Размер логотипа" value={settings.logoScale} min={.1} max={1.5} onChange={v=>update('logoScale',v)}/>
               <div className="mini-sliders"><Slider label="Сдвиг X" min={-.5} max={.5} value={settings.logoX} onChange={v=>update('logoX',v)}/><Slider label="Сдвиг Y" min={-.5} max={.5} value={settings.logoY} onChange={v=>update('logoY',v)}/></div>
-              <label className="select-row">UV логотипа<select aria-label="UV логотипа" value={settings.logoUV} onChange={e=>update('logoUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
             </section>
             <section className="image-section image-texture-settings" aria-labelledby="texture-settings-heading">
               <div className="image-section-heading"><h2 id="texture-settings-heading">Настройки паттерна</h2><span>UV {settings.patternUV + 1}</span></div>
               <label className="select-row">UV текстуры<select aria-label="UV текстуры" value={settings.patternUV} onChange={e=>update('patternUV',Number(e.target.value))}>{uvChannels.map(channel=><option key={channel.value} value={channel.value}>{channel.label}</option>)}</select></label>
-              <label className="select-row">Режим паттерна<select aria-label="Режим паттерна" value={settings.patternMode} onChange={e=>update('patternMode',e.target.value)}><option value="color">Цвет</option><option value="roughness">Поверхность</option></select></label>
+              <div className="select-row pattern-mode-field"><span id="pattern-mode-label">Режим паттерна</span><div className="segmented pattern-mode-toggle" role="group" aria-labelledby="pattern-mode-label">{[['color','Цвет'],['roughness','Поверхность']].map(([id,label])=><button key={id} type="button" className={settings.patternMode===id?'active':''} aria-pressed={settings.patternMode===id} onClick={()=>update('patternMode',id)}>{label}</button>)}</div></div>
               <Slider label="Прозрачность" value={settings.patternStrength} onChange={v=>update('patternStrength',v)}/>
               <Slider label="Масштаб" value={settings.patternScale} min={.25} max={8} onChange={v=>update('patternScale',v)}/>
               <Slider label="Поворот" value={settings.patternRotation} min={0} max={360} step={1} unit="°" onChange={v=>update('patternRotation',v)}/>
@@ -305,14 +341,21 @@ function App() {
             </section>
           </div>}
         </div>
-        <aside className="export-panel"><div className="export-title"><ArrowDownToLine size={18}/><h2>Забрать с собой</h2></div><p>{tab==='batch' ? 'Каждый логотип — отдельная иконка.' : 'Ваша иконка. Во всех деталях.'}</p><label className="export-label">Размер изображения<select disabled={batchBusy} value={size} onChange={e=>setSize(Number(e.target.value))}>{[512,1024,2048,4096].map(n=><option key={n} value={n}>{n} × {n} px</option>)}</select></label><label className="checkbox"><input type="checkbox" disabled={batchBusy} checked={transparent} onChange={e=>setTransparent(e.target.checked)}/><span className="checker"/>Прозрачный фон</label><button className="export-button" disabled={!ready || exporting || environmentLoading || batchBusy || (tab==='batch' && (!batch.files.length || !environmentPresetsLoaded))} onClick={tab==='batch' ? (batch.archive ? batch.download : batch.start) : exportPNG}><ArrowDownToLine size={17}/>{tab==='batch' ? (batchBusy ? `Обработка ${batch.progress}/${batch.files.length}` : batch.archive ? 'Скачать архив' : 'Начать пакетную обработку') : exporting ? 'Сохраняем…' : 'Скачать PNG'}<MoveUpRight size={16}/></button>
+        <aside className="export-panel"><div className="export-title"><ArrowDownToLine size={18}/><h2>Забрать с собой</h2></div><p>{tab==='batch' ? 'Каждый логотип — отдельная иконка.' : 'Ваша иконка. Во всех деталях.'}</p>
+          <label className="export-label">Размер изображения<select disabled={batchBusy || exporting} value={size} onChange={e=>setSize(Number(e.target.value))}>{[512,1024,2048,4096].map(n=><option key={n} value={n}>{n} × {n} px</option>)}</select><small className="export-size-estimate" aria-live="polite">Один {format.toUpperCase()} · ≈ {formatFileSize(estimatePNGBytes(size))}</small></label>
+          <label className="checkbox"><input type="checkbox" disabled={batchBusy || exporting} checked={transparent} onChange={e=>setTransparent(e.target.checked)}/><span className="checker"/>Прозрачный фон</label>
+          {!transparent && <div className="export-background-options preset-glass">
+            <fieldset className="export-background-color" disabled={batchBusy || exporting}><legend>Цвет подложки</legend><ColorPicker label="Цвет подложки" value={backgroundColor} onChange={setBackgroundColor}/></fieldset>
+            <label className="export-label">Формат<select aria-label="Формат" disabled={batchBusy || exporting} value={opaqueFormat} onChange={e=>setOpaqueFormat(e.target.value)}><option value="png">PNG</option><option value="jpg">JPG</option></select></label>
+          </div>}
+          <button className="export-button" disabled={!ready || exporting || environmentLoading || batchBusy || (tab==='batch' && (!batch.files.length || !environmentPresetsLoaded))} onClick={tab==='batch' ? (batch.archive ? batch.download : batch.start) : exportPNG}><ArrowDownToLine size={17}/>{tab==='batch' ? (batchBusy ? `Обработка ${batch.progress}/${batch.files.length}` : batch.archive ? 'Скачать архив' : 'Начать пакетную обработку') : exporting ? 'Сохраняем…' : `Скачать ${format.toUpperCase()}`}<MoveUpRight size={16}/></button>
           {watermarkEnabled && <button className="github-watermark-link" disabled={!githubURL || batchBusy || exporting} title={!githubURL ? 'Ссылка на GitHub скоро появится' : 'Открыть GitHub и отключить вотермарку'} onClick={() => {
             window.open(githubURL, '_blank', 'noopener,noreferrer');
             const persisted = rememberWatermarkDisabled();
             setWatermarkEnabled(false);
             setStatus(persisted ? 'Вотермарка отключена для этого браузера' : 'Вотермарка отключена до закрытия страницы: хранилище недоступно');
           }}>Оставить звезду на GitHub и скачать без вотермарки</button>}
-          <small aria-live="polite">{tab==='batch' ? (batchBusy ? `${Math.round(batch.progress/Math.max(1,batch.files.length)*100)}% · PNG → ZIP` : batch.archive ? `ZIP · ${batch.archive.count} PNG · ${(batch.archive.size/1024/1024).toFixed(1)} МБ` : 'Локально · PNG в ZIP-архиве') : `PNG · ${size/1024 >= 1 ? `${size/1024}K` : `${size}px`} · ${watermarkEnabled ? 'с вотермаркой' : 'без водяных знаков'}`}</small>{tab==='batch' && batch.archive && <button className="batch-repeat" onClick={batch.reset}>Обработать заново</button>}</aside>
+          <small aria-live="polite">{tab==='batch' ? (batch.archive ? `ZIP · ${batch.archive.count} ${batch.archive.format.toUpperCase()} · ${formatFileSize(batch.archive.size)}` : `${batchBusy ? `${Math.round(batch.progress/Math.max(1,batch.files.length)*100)}% · ` : ''}ZIP · ${batch.files.length} ${format.toUpperCase()} · ≈ ${formatFileSize(estimatePNGBytes(size, batch.files.length))}`) : `${format.toUpperCase()} · ${size/1024 >= 1 ? `${size/1024}K` : `${size}px`} · ${watermarkEnabled ? 'с вотермаркой' : 'без водяных знаков'}`}</small>{tab==='batch' && batch.archive && <button className="batch-repeat" onClick={batch.reset}>Обработать заново</button>}</aside>
       </section>
       {error && <div className="error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть ошибку"><X size={16}/></button></div>}
     </main>

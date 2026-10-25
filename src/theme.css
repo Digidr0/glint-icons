@@ -12,8 +12,7 @@
 .images-grid .slider { margin-bottom: 16px; }
 .images-grid .slider > span { font-size: 11px; }
 .images-grid .mini-sliders { gap: 16px; }
-.images-grid .select-row { font-size: 10px; margin: 0 0 16px; gap: 8px; }
-.images-grid .select-row select { min-width: 0; max-width: 65%; }
+.images-grid .select-row { margin: 0 0 16px; }
 .image-logo .upload { min-height: 52px; padding: 8px 32px 8px 10px; gap: 10px; }
 .image-logo .upload img { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; }
 .image-logo .upload > span:not(.upload-plus) { min-width: 0; }
@@ -26,7 +25,7 @@
   .images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 20px; }
   .image-library { grid-column: 1 / -1; grid-row: auto; padding: 0 0 20px; border-right: 0; border-bottom: 1px solid var(--divider); }
   .image-logo { padding: 0; }
-  .image-texture-settings { padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--divider); }
+  .image-texture-settings { padding: 0; border-top: 0; border-left: 0; }
 }
 @container (max-width: 480px) {
   .images-grid { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 20px; }
@@ -50,9 +49,9 @@
   --field: #ffffff;
   --field-hover: #f4f4f6;
   --text: #24262c;
-  --secondary: #666872;
-  --muted: #767883;
-  --faint: #898b95;
+  --secondary: #383d47;
+  --muted: #515661;
+  --faint: #626773;
   --border: #e6e7eb;
   --divider: #eff0f3;
   --track: #e9eaee;
@@ -63,7 +62,7 @@
   --editor-shadow: 0 2px 3px #292b3710, 0 8px 24px #292b3705;
   --scene-bg: radial-gradient(ellipse at 50% 38%, #f4f4f6 0%, #e9eaed 55%, #e3e4e8 100%);
   --workspace-glass: #ffffff26;
-  --editor-glass: #ffffffa8;
+  --editor-glass: #ffffffeb;
   --frame: #a7a8b180;
   --hdri-bg: radial-gradient(ellipse at 10% 10%, #f2eddf, #e4e5eb 60%, #d2d4df);
   --thumb: #ffffff;
@@ -72,6 +71,15 @@
   --error-bg: #fff0f0;
   --error-text: #a03c3c;
   --error-border: #eac4c4;
+}
+
+/* Light-only surface adjustments. Dark theme keeps its existing palette. */
+:root:not([data-theme='dark']) {
+  --surface-glass-bg: #ffffffd9;
+  --surface-glass-hover: #fffffff0;
+  --surface-glass-border: #a0a6b266;
+  --surface-glass-shadow: inset 0 1px 0 #ffffffcc, 0 4px 16px #2021250a;
+  --control-border: #858a96;
 }
 
 :root[data-theme='dark'] {
@@ -223,6 +231,32 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .export-title svg { color: var(--secondary); }
 .export-panel > p, .export-label, .export-panel > small, .checkbox { color: var(--muted); }
 .export-label select, .select-row select { color: var(--secondary); background: var(--field); border-color: var(--border); }
+/* Native selects share one field layout; the OS still owns the option menu. */
+.select-row, .export-label {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  gap: 6px; min-width: 0; font-size: 11px; line-height: 1.5;
+}
+.select-row select, .export-label select {
+  display: block; width: 100%; max-width: none; min-width: 0; height: 36px; min-height: 36px;
+  margin: 0; padding: 8px 10px; border-width: 1px; border-style: solid; border-radius: 6px;
+  font-size: 12px; line-height: 1.5; cursor: pointer;
+}
+.export-label { margin-bottom: 14px; }
+.export-size-estimate { font-size: 10px; line-height: 1.5; color: var(--muted); }
+.export-background-options { padding: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.export-background-options .export-label { margin: 0; }
+.export-background-color { min-width: 0; margin: 0; padding: 0; border: 0; color: var(--muted); font-size: 11px; }
+.export-background-color legend { padding: 0; margin-bottom: 6px; }
+.export-background-color .custom-color-picker { margin-bottom: 0; }
+.export-background-color:disabled .custom-color-picker { pointer-events: none; opacity: .5; }
+@media (max-width: 900px) {
+  .export-background-options { grid-column: 1 / -1; grid-row: 4; margin-top: 0; }
+}
+.pattern-mode-toggle { width: 100%; }
+.pattern-mode-toggle button { flex: 1; min-width: 0; min-height: 32px; font-size: 12px; }
+@media (max-width: 600px) {
+  .pattern-mode-toggle button { min-height: 36px; font-size: 14px; }
+}
 .checker { border-color: var(--border); background: conic-gradient(var(--track) 25%, var(--field) 0 50%, var(--track) 0 75%, var(--field) 0) 0 0/6px 6px; }
 .export-button { background: var(--accent); border-color: var(--accent); color: #241407; box-shadow: 0 2px 5px #00000015; }
 .export-button > svg:last-child { color: #241407b3; }
@@ -300,6 +334,9 @@ main > .mobile-gradient-background { background: radial-gradient(ellipse at 50% 
 .scene-sidebar { position: absolute; left: 25px; top: 135px; bottom: 63px; width: 270px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .scene-sidebar > * { flex-shrink: 0; }
 .scene-sidebar .viewport-tools { position: static; transform: none; }
+.scene-sidebar .viewport-tools .segmented { flex: 1; min-width: 0; }
+.scene-sidebar .viewport-tools .segmented button { flex: 1; min-width: 0; padding-inline: 6px; }
+.scene-sidebar .viewport-tools .icon-button { flex: 0 0 39px; }
 .scene-sidebar .camera-panel { position: static; min-width: 0; max-width: none; width: 100%; }
 .camera-fov { padding: 12px 13px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 9px; backdrop-filter: blur(16px); }
 .camera-fov .slider { margin: 0; }
@@ -440,6 +477,20 @@ main > .mobile-gradient-background { background: radial-gradient(ellipse at 50% 
 .segmented button.active { background: var(--accent-soft); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent-border); }
 .camera-preset-delete { background: var(--surface-glass-bg); }
 .camera-preset-delete:hover { background: var(--surface-glass-hover); }
+
+:root:not([data-theme='dark']) .select-row select,
+:root:not([data-theme='dark']) .export-label select { border-color: var(--control-border); }
+:root:not([data-theme='dark']) .github-watermark-link {
+  background: #202125ed; border-color: #2021257a; color: var(--accent);
+}
+:root:not([data-theme='dark']) button:focus-visible,
+:root:not([data-theme='dark']) a:focus-visible,
+:root:not([data-theme='dark']) input:focus-visible,
+:root:not([data-theme='dark']) select:focus-visible { outline-color: var(--accent-text); }
+
+@media (max-width: 600px) {
+  .select-row select, .export-label select { height: 44px; min-height: 44px; font-size: 16px; }
+}
 
 /* Stack complete camera/light sections below the square on small screens. */
 @media (max-width: 600px) {
